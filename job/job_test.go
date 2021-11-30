@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestStart(t *testing.T) {
+func TestJobStart(t *testing.T) {
 	j := New()
 
 	assertStatus(t, j, status.Idle())
@@ -25,7 +25,7 @@ func TestStart(t *testing.T) {
 	assertStatus(t, j, status.Exited(0))
 }
 
-func TestStop(t *testing.T) {
+func TestJobStop(t *testing.T) {
 	j := New()
 
 	assertStatus(t, j, status.Idle())
@@ -42,7 +42,7 @@ func TestStop(t *testing.T) {
 	assertStatus(t, j, status.Killed(-1))
 }
 
-func TestOutput(t *testing.T) {
+func TestJobOutput(t *testing.T) {
 	j := New()
 
 	assertStatus(t, j, status.Idle())
@@ -67,36 +67,35 @@ func TestOutput(t *testing.T) {
 	assertOutput(t, j, expectedLines)
 }
 
-func TestMultipleReaders(t *testing.T) {
-	//j := New()
-	//
-	//expectedLines := []string{
-	//	"Running for 2 times, sleeping for 0.1\n",
-	//	"#1\n",
-	//	"#2\n",
-	//}
-	//
-	//err := j.Start("../test.sh", "2", "0.1")
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//o1 := j.Output()
-	//
-	//time.Sleep(10*time.Millisecond)
-	//
-	//o2 := j.Output()
-	//
-	//j.Wait()
-	//
-	//assert.AssertOutput(t, o1, expectedLines)
-	//assert.AssertOutput(t, o2, expectedLines)
+func TestJobMultipleReaders(t *testing.T) {
+	j := New()
+
+	expectedLines := []string{
+		"Running for 2 times, sleeping for 0.1\n",
+		"#1\n",
+		"#2\n",
+	}
+
+	err := j.Start("../test.sh", "2", "0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	o1 := j.Output()
+
+	time.Sleep(10 * time.Millisecond)
+
+	o2 := j.Output()
+
+	j.Wait()
+
+	assert.AssertOutput(t, o1, expectedLines)
+	assert.AssertOutput(t, o2, expectedLines)
 }
 
 // * Add resource control for CPU, Memory and Disk IO per job using cgroups.
 // * Add resource isolation for using PID, mount, and networking namespaces.
-
-func TestNamespaces(t *testing.T) {
+func TestJobNamespaces(t *testing.T) {
 	j := New()
 
 	assertStatus(t, j, status.Idle())

@@ -4,7 +4,6 @@ import (
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/status"
 	"github.com/beoboo/job-scheduler/library/stream"
-	"io"
 )
 
 func do(val string, err error) string {
@@ -20,18 +19,18 @@ func check(err error) {
 }
 
 func printOutput(o *stream.Stream) {
+	s := o.Read()
+
 	for {
-		l, err := o.Read()
-		if err == io.EOF {
+		line := <-s
+		if line == nil {
 			break
 		}
 
-		check(err)
-
-		if l.Channel == stream.Output {
-			log.Infoln(l)
+		if line.Channel == stream.Output {
+			log.Infoln(line)
 		} else {
-			log.Warnln(l)
+			log.Warnln(line)
 		}
 	}
 }

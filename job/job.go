@@ -25,8 +25,7 @@ type Job struct {
 	output *stream.Stream
 	done   chan bool
 	status *status.Status
-	m      sync.Mutex
-	rwm sync.RWMutex
+	m      sync.RWMutex
 }
 
 // New creates a new Job
@@ -96,8 +95,6 @@ func (j *Job) Output() *stream.Stream {
 	j.wlock("Output")
 	defer j.wunlock("Output")
 
-	j.output.Rewind()
-
 	return j.output
 }
 
@@ -133,12 +130,17 @@ func (j *Job) run(started chan error) {
 	j.pipe(stream.Output, stdout)
 	j.pipe(stream.Error, stderr)
 
+	// Wait is expected to fail for three reasons
+	// 1. the process is not started (but that doesn't apply, or it would have exited above)
+	// 2. it's called twice (not the case, again)
+	// 3. the process is killed (and we can just log this and return the status and exit code)
 	err = j.cmd.Wait()
+	j.updateExitCode()
 	if err != nil {
 		log.Debugf("Error calling Wait: %v\n", err)
+	} else {
+		j.updateStatus(status.EXITED)
 	}
-
-	j.updateStatus(status.EXITED)
 
 	j.done <- true
 }
@@ -155,19 +157,27 @@ func (j *Job) pipe(channel stream.Channel, pipe io.ReadCloser) {
 				if len(text) > 0 {
 					log.Debugf("[%s] %s", channel, text)
 
-					_ = j.output.Write(stream.Line{
+					j.wlock("pipe")
+					err := j.output.Write(stream.Line{
 						Channel: channel,
 						Time:    time.Now(),
 						Text:    text,
 					})
+					j.wunlock("pipe")
+					if err != nil {
+						break
+					}
 				} else {
 					break
 				}
 			}
 
+			j.rlock("pipe")
 			if j.status.Value == status.RUNNING {
+				j.runlock("pipe")
 				time.Sleep(10 * time.Millisecond)
 			} else {
+				j.runlock("pipe")
 				break
 			}
 		}
@@ -190,33 +200,41 @@ func (j *Job) updateStatus(st string) {
 	j.wlock("updateStatus")
 	defer j.wunlock("updateStatus")
 
-	// TODO: we could have a state machine here
+	// TODO: we could have a state machine here, and check for invalid state transitions
 	switch j.status.Value {
 	case status.IDLE:
 		if st == status.RUNNING {
 			j.status.Value = st
 		}
+		break
 	case status.RUNNING:
-		if st == status.EXITED {
-			j.status = status.Exited(j.cmd.ProcessState.ExitCode())
-		} else if st == status.KILLED {
-			j.status = status.Killed(j.cmd.ProcessState.ExitCode())
+		if st == status.EXITED || st == status.KILLED {
+			j.status.Value = st
+			j.output.Close()
 		}
-		j.output.Close()
+		break
 	default:
 		return
 	}
 }
 
+func (j *Job) updateExitCode() {
+	j.wlock("updateExitCode")
+	defer j.wunlock("updateExitCode")
+
+	// TODO: we could have a state machine here
+	j.status.ExitCode = j.cmd.ProcessState.ExitCode()
+}
+
 // These wraps mutex R/W lock and unlock for debugging purposes
 func (j *Job) rlock(id string) {
 	log.Tracef("Job read locking %s\n", id)
-	j.m.Lock()
+	j.m.RLock()
 }
 
 func (j *Job) runlock(id string) {
 	log.Tracef("Job read unlocking %s\n", id)
-	j.m.Unlock()
+	j.m.RUnlock()
 }
 
 func (j *Job) wlock(id string) {

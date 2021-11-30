@@ -1,6 +1,6 @@
-FROM ubuntu:latest
+FROM ubuntu:20.04
 
-ENV GOLANG_VERSION 1.16
+ENV GOLANG_VERSION 1.17.3
 
 # Install packages
 RUN apt update && \
