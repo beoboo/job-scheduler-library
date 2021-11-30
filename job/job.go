@@ -1,7 +1,6 @@
 package job
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/status"
@@ -148,48 +147,37 @@ func (j *Job) run(started chan error) {
 func (j *Job) pipe(channel stream.Channel, pipe io.ReadCloser) {
 	go func() {
 		for {
-			scanner := bufio.NewScanner(pipe)
-			scanner.Split(scanData)
-
-			for scanner.Scan() {
-				text := scanner.Bytes()
-
-				if len(text) > 0 {
-					log.Debugf("[%s] %s", channel, text)
-
-					j.wlock("pipe")
-					err := j.output.Write(stream.Line{
-						Channel: channel,
-						Time:    time.Now(),
-						Text:    text,
-					})
-					j.wunlock("pipe")
-					if err != nil {
-						break
-					}
-				} else {
-					break
-				}
+			buf := make([]byte, BUFFER_SIZE)
+			n, err := pipe.Read(buf)
+			if err != nil {
+				log.Debugf("Pipe closed: %s\n", err)
+				break
 			}
 
-			j.rlock("pipe")
-			if j.status.Value == status.RUNNING {
-				j.runlock("pipe")
-				time.Sleep(10 * time.Millisecond)
+			if n > 0 {
+				log.Debugf("[%s] %s", channel, buf[:n])
+
+				err := j.write(channel, buf[:n])
+				if err != nil {
+					break
+				}
 			} else {
-				j.runlock("pipe")
 				break
 			}
 		}
 	}()
 }
 
-func scanData(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if len(data) >= BUFFER_SIZE {
-		return BUFFER_SIZE, data[0:BUFFER_SIZE], nil
-	}
+func (j *Job) write(channel stream.Channel, text []byte) error {
+	j.wlock("pipe")
+	defer j.wunlock("pipe")
 
-	return len(data), data, nil
+	return j.output.Write(stream.Line{
+		Channel: channel,
+		Time:    time.Now(),
+		Text:    text,
+	})
+
 }
 
 func (j *Job) pid() int {
