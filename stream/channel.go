@@ -4,7 +4,7 @@ type Channel int
 
 const (
 	Output Channel = 1
-	Error          = 2
+	Error  Channel = 2
 )
 
 func (c Channel) String() string {

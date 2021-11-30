@@ -12,7 +12,7 @@ type Stream struct {
 	pos    int
 	close  chan bool
 	closed bool
-	m      sync.Mutex
+	m      sync.RWMutex
 }
 
 // New creates a new Stream.
@@ -25,23 +25,29 @@ func New() *Stream {
 	return s
 }
 
-// Read return an available Line, if it's not been read, or blocks until the next one is written.
-// Returns io.EOF if the stream is closed.
-func (s *Stream) Read() (*Line, error) {
-	for {
-		if s.hasData() {
-			return s.readNext(), nil
-		} else {
-			select {
-			case <-time.After(100 * time.Millisecond):
-				continue
-			case <-s.close:
-			}
-			break
-		}
-	}
+// Read returns a channel of available Lines, if it's not been read, or blocks until the next one is written.
+func (s *Stream) Read() <-chan *Line {
+	next := make(chan *Line)
+	pos := 0
 
-	return nil, io.EOF
+	go func() {
+		for {
+			if s.hasData(pos) {
+				next <- s.readNext(pos)
+				pos += 1
+			} else {
+				select {
+				case <-time.After(100 * time.Millisecond):
+					continue
+				case <-s.close:
+					close(next)
+				}
+				break
+			}
+		}
+	}()
+
+	return next
 }
 
 // Write adds a new Line, or returns io.ErrClosedPipe if the stream is closed.
@@ -52,6 +58,7 @@ func (s *Stream) Write(line Line) error {
 
 	s.wlock("Write")
 	defer s.wunlock("Write")
+
 	s.lines = append(s.lines, line)
 
 	return nil
@@ -63,14 +70,6 @@ func (s *Stream) IsClosed() bool {
 	defer s.runlock("IsClosed")
 
 	return s.closed
-}
-
-// Rewind sets the next read to be the first stored line.
-func (s *Stream) Rewind() {
-	s.wlock("Rewind")
-	defer s.wunlock("Rewind")
-
-	s.pos = 0
 }
 
 // Close closes the stream, so that no new writes can be added to it.
@@ -87,36 +86,33 @@ func (s *Stream) Close() {
 	s.closed = true
 }
 
-func (s *Stream) hasData() bool {
+func (s *Stream) hasData(pos int) bool {
 	s.rlock("hasData")
 	defer s.runlock("hasData")
 
-	return s.pos < len(s.lines)
+	return pos < len(s.lines)
 }
 
-func (s *Stream) readNext() *Line {
+func (s *Stream) readNext(pos int) *Line {
 	s.wlock("readNext")
 	defer s.wunlock("readNext")
-
-	pos := s.pos
-	s.pos += 1
 
 	return &s.lines[pos]
 }
 
 // These wraps mutex R/W lock and unlock for debugging purposes
 func (s *Stream) rlock(id string) {
-	log.Tracef("Stream locking %s\n", id)
-	s.m.Lock()
+	log.Tracef("Stream read locking %s\n", id)
+	s.m.RLock()
 }
 
 func (s *Stream) runlock(id string) {
-	log.Tracef("Stream unlocking %s\n", id)
-	s.m.Unlock()
+	log.Tracef("Stream read unlocking %s\n", id)
+	s.m.RUnlock()
 }
 
 func (s *Stream) wlock(id string) {
-	log.Tracef("Stream locking %s\n", id)
+	log.Tracef("Stream write locking %s\n", id)
 	s.m.Lock()
 }
 

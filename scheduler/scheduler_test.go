@@ -9,7 +9,7 @@ import (
 
 var s = New(false)
 
-func TestStart(t *testing.T) {
+func TestSchedulerStart(t *testing.T) {
 	id, _ := s.Start("sleep", "0.1")
 
 	if s.Size() != 1 {
@@ -23,7 +23,7 @@ func TestStart(t *testing.T) {
 	assertStatus(t, s, id, status.Exited(0))
 }
 
-func TestStop(t *testing.T) {
+func TestSchedulerStop(t *testing.T) {
 	id, _ := s.Start("sleep", "10")
 
 	assertStatus(t, s, id, status.Running())
@@ -33,7 +33,7 @@ func TestStop(t *testing.T) {
 	assertStatus(t, s, id, status.Killed(-1))
 }
 
-func TestOutput(t *testing.T) {
+func TestSchedulerOutput(t *testing.T) {
 	expectedLines := []string{
 		"Running for 1 times, sleeping for 0.1\n",
 		"#1\n",

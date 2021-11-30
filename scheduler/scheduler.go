@@ -14,7 +14,7 @@ import (
 type Scheduler struct {
 	runJobAsChild bool // For debugging purposes only
 	jobs          map[string]*job.Job
-	mtx           sync.Mutex
+	m             sync.RWMutex
 }
 
 // New creates a scheduler.
@@ -115,20 +115,20 @@ func (s *Scheduler) Size() int {
 // These wraps mutex R/W lock and unlock for debugging purposes
 func (s *Scheduler) rlock(id string) {
 	log.Tracef("Scheduler read locking %s\n", id)
-	s.mtx.Lock()
+	s.m.RLock()
 }
 
 func (s *Scheduler) runlock(id string) {
 	log.Tracef("Scheduler read unlocking %s\n", id)
-	s.mtx.Unlock()
+	s.m.RUnlock()
 }
 
 func (s *Scheduler) wlock(id string) {
 	log.Tracef("Scheduler write locking %s\n", id)
-	s.mtx.Lock()
+	s.m.Lock()
 }
 
 func (s *Scheduler) wunlock(id string) {
 	log.Tracef("Scheduler write unlocking %s\n", id)
-	s.mtx.Unlock()
+	s.m.Unlock()
 }

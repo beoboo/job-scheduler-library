@@ -16,14 +16,11 @@ func AssertStatus(t *testing.T, st *status.Status, expected *status.Status) {
 }
 
 func AssertOutput(t *testing.T, o *stream.Stream, expected []string) {
+	s := o.Read()
 	for _, e := range expected {
-		l, err := o.Read()
-		if err != nil {
-			t.Fatalf("Expected output line: %v\n", err)
-		}
-
-		if string(l.Text) != e {
-			t.Fatalf("Job output should contain \"%s\", got \"%s\"", e, l.Text)
+		line := <-s
+		if string(line.Text) != e {
+			t.Fatalf("Job output should contain \"%s\", got \"%s\"", e, line.Text)
 		}
 	}
 }
