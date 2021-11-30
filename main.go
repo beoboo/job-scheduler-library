@@ -92,12 +92,12 @@ func run(args ...string) {
 	executable := remaining[0]
 	params := remaining[1:]
 
-	startJob(err, executable, params...)
+	startJob(executable, params...)
 }
 
-func startJob(err error, executable string, params ...string) {
+func startJob(executable string, params ...string) {
 	j := job.New()
-	err = j.StartChild(executable, params...)
+	err := j.StartChild(executable, params...)
 	if err != nil {
 		log.Fatalf("Cannot run \"%s\": %s\n", strings.Join(params, " "), err)
 	}

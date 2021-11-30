@@ -19,7 +19,7 @@ func AssertOutput(t *testing.T, o *stream.Stream, expected []string) {
 	for _, e := range expected {
 		l, err := o.Read()
 		if err != nil {
-			t.Fatal("Expected output line")
+			t.Fatalf("Expected output line: %v\n", err)
 		}
 
 		if string(l.Text) != e {

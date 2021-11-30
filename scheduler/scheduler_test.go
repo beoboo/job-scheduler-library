@@ -9,8 +9,8 @@ import (
 
 var s = New(false)
 
-func TestStartStop(t *testing.T) {
-	id, _ := s.Start("echo", "world")
+func TestStart(t *testing.T) {
+	id, _ := s.Start("sleep", "0.1")
 
 	if s.Size() != 1 {
 		t.Fatalf("Job not started")
@@ -18,13 +18,13 @@ func TestStartStop(t *testing.T) {
 
 	assertStatus(t, s, id, status.Running())
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	assertStatus(t, s, id, status.Exited(0))
 }
 
 func TestStop(t *testing.T) {
-	id, _ := s.Start("echo", "world")
+	id, _ := s.Start("sleep", "10")
 
 	assertStatus(t, s, id, status.Running())
 
@@ -35,8 +35,8 @@ func TestStop(t *testing.T) {
 
 func TestOutput(t *testing.T) {
 	expectedLines := []string{
-		"Running for 1 times, sleeping for 0.1",
-		"#1",
+		"Running for 1 times, sleeping for 0.1\n",
+		"#1\n",
 	}
 
 	id, _ := s.Start("../test.sh", "1", "0.1")
