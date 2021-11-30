@@ -52,12 +52,12 @@ func (s *Stream) Read() <-chan *Line {
 
 // Write adds a new Line, or returns io.ErrClosedPipe if the stream is closed.
 func (s *Stream) Write(line Line) error {
-	if s.IsClosed() {
-		return io.ErrClosedPipe
-	}
-
 	s.wlock("Write")
 	defer s.wunlock("Write")
+
+	if s.closed {
+		return io.ErrClosedPipe
+	}
 
 	s.lines = append(s.lines, line)
 
@@ -94,8 +94,8 @@ func (s *Stream) hasData(pos int) bool {
 }
 
 func (s *Stream) readNext(pos int) *Line {
-	s.wlock("readNext")
-	defer s.wunlock("readNext")
+	s.rlock("readNext")
+	defer s.runlock("readNext")
 
 	return &s.lines[pos]
 }
