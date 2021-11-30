@@ -20,12 +20,10 @@ func TestStreamWrite(t *testing.T) {
 	defer s.Close()
 
 	expected := "line"
-	println("1")
+
 	write(s, expected)
-	println("2")
 
 	assertRead(t, s, expected)
-	println("3")
 }
 
 func TestStreamResetPos(t *testing.T) {

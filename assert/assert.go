@@ -19,8 +19,11 @@ func AssertOutput(t *testing.T, o *stream.Stream, expected []string) {
 	s := o.Read()
 	for _, e := range expected {
 		line := <-s
+
+		print(line.Text)
+		print(e)
 		if string(line.Text) != e {
-			t.Fatalf("Job output should contain \"%s\", got \"%s\"", e, line.Text)
+			t.Fatalf("Job output should contain \"%s\"%d, got \"%s\"%d", e, len(e), line.Text, len(line.Text))
 		}
 	}
 }
