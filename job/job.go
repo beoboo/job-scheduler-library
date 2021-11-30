@@ -13,6 +13,10 @@ import (
 	"time"
 )
 
+const (
+	BUFFER_SIZE = 1024
+)
+
 // Job wraps the execution of a process, capturing its stdout and stderr streams,
 // and providing the process status
 type Job struct {
@@ -22,6 +26,7 @@ type Job struct {
 	done   chan bool
 	status *status.Status
 	m      sync.Mutex
+	rwm sync.RWMutex
 }
 
 // New creates a new Job
@@ -128,7 +133,10 @@ func (j *Job) run(started chan error) {
 	j.pipe(stream.Output, stdout)
 	j.pipe(stream.Error, stderr)
 
-	_ = j.cmd.Wait()
+	err = j.cmd.Wait()
+	if err != nil {
+		log.Debugf("Error calling Wait: %v\n", err)
+	}
 
 	j.updateStatus(status.EXITED)
 
@@ -136,22 +144,42 @@ func (j *Job) run(started chan error) {
 }
 
 func (j *Job) pipe(channel stream.Channel, pipe io.ReadCloser) {
-	scanner := bufio.NewScanner(pipe)
-	scanner.Split(bufio.ScanLines)
+	go func() {
+		for {
+			scanner := bufio.NewScanner(pipe)
+			scanner.Split(scanData)
 
-	for scanner.Scan() {
-		text := scanner.Bytes()
+			for scanner.Scan() {
+				text := scanner.Bytes()
 
-		// This goroutine is needed to decouple output writing from the pipe
-		go func() {
-			log.Debugf("[%s] %s\n", channel, text)
-			_ = j.output.Write(stream.Line{
-				Channel: channel,
-				Time:    time.Now(),
-				Text:    text,
-			})
-		}()
+				if len(text) > 0 {
+					log.Debugf("[%s] %s", channel, text)
+
+					_ = j.output.Write(stream.Line{
+						Channel: channel,
+						Time:    time.Now(),
+						Text:    text,
+					})
+				} else {
+					break
+				}
+			}
+
+			if j.status.Value == status.RUNNING {
+				time.Sleep(10 * time.Millisecond)
+			} else {
+				break
+			}
+		}
+	}()
+}
+
+func scanData(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if len(data) >= BUFFER_SIZE {
+		return BUFFER_SIZE, data[0:BUFFER_SIZE], nil
 	}
+
+	return len(data), data, nil
 }
 
 func (j *Job) pid() int {

@@ -48,9 +48,9 @@ func TestOutput(t *testing.T) {
 	assertStatus(t, j, status.Idle())
 
 	expectedLines := []string{
-		"Running for 2 times, sleeping for 0.1",
-		"#1",
-		"#2",
+		"Running for 2 times, sleeping for 0.1\n",
+		"#1\n",
+		"#2\n",
 	}
 
 	err := j.Start("../test.sh", "2", "0.1")
@@ -65,6 +65,32 @@ func TestOutput(t *testing.T) {
 	assertStatus(t, j, status.Exited(0))
 
 	assertOutput(t, j, expectedLines)
+}
+
+func TestMultipleReaders(t *testing.T) {
+	//j := New()
+	//
+	//expectedLines := []string{
+	//	"Running for 2 times, sleeping for 0.1\n",
+	//	"#1\n",
+	//	"#2\n",
+	//}
+	//
+	//err := j.Start("../test.sh", "2", "0.1")
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//o1 := j.Output()
+	//
+	//time.Sleep(10*time.Millisecond)
+	//
+	//o2 := j.Output()
+	//
+	//j.Wait()
+	//
+	//assert.AssertOutput(t, o1, expectedLines)
+	//assert.AssertOutput(t, o2, expectedLines)
 }
 
 // * Add resource control for CPU, Memory and Disk IO per job using cgroups.
