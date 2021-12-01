@@ -208,7 +208,6 @@ func (j *Job) updateExitCode() {
 	j.wlock("updateExitCode")
 	defer j.wunlock("updateExitCode")
 
-	// TODO: we could have a state machine here
 	j.status.ExitCode = j.cmd.ProcessState.ExitCode()
 }
 
