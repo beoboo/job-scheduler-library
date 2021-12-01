@@ -121,10 +121,13 @@ func assertStatus(t *testing.T, st *JobStatus, expectedType StatusType, expected
 
 func assertOutput(t *testing.T, o *stream.Stream, expected []string) {
 	lines := o.Read()
-	defer o.Unsubscribe()
 
 	for _, e := range expected {
 		line := <-lines
+
+		if line == nil {
+			t.Fatalf("Line is nil")
+		}
 
 		if string(line.Text) != e {
 			t.Fatalf("job output should contain \"%s\"%d, got \"%s\"%d", e, len(e), line.Text, len(line.Text))

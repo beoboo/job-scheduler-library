@@ -84,31 +84,6 @@ func TestStreamCannotWriteToClosedStream(t *testing.T) {
 	}
 }
 
-func TestUnsubscribe(t *testing.T) {
-	s := New()
-	defer s.Close()
-
-	go func() {
-		s.Read()
-		defer s.Unsubscribe()
-	}()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-		err := s.Write(buildLine("line"))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		wg.Done()
-	}()
-
-	wg.Wait()
-}
-
 func TestStreamConcurrentReads(t *testing.T) {
 	s := New()
 	res1 := ""
@@ -173,7 +148,6 @@ func buildLine(t string) Line {
 
 func assertRead(t *testing.T, s *Stream, expected string) {
 	l := <-s.Read()
-	defer s.Unsubscribe()
 
 	if string(l.Text) != expected {
 		t.Fatalf("Didn't read successfully, expected \"%s\", got \"%s\"", expected, l.Text)
