@@ -120,10 +120,14 @@ func (j *Job) run(started chan error) {
 
 	err := j.cmd.Start()
 
-	started <- err
 	if err != nil {
+		j.updateStatus(Errored)
+		started <- err
+
 		return
 	}
+
+	started <- err
 
 	j.updateStatus(Running)
 
@@ -135,9 +139,12 @@ func (j *Job) run(started chan error) {
 	// 2. it's called twice (not the case, again)
 	// 3. the process is killed (and we can just log this and return the status and exit code)
 	err = j.cmd.Wait()
+
 	j.updateExitCode()
+
 	if err != nil {
 		log.Debugf("Error calling Wait: %v\n", err)
+		j.updateStatus(Errored)
 	} else {
 		j.updateStatus(Exited)
 	}
@@ -189,19 +196,12 @@ func (j *Job) updateStatus(st StatusType) {
 	j.m.WLock("updateStatus")
 	defer j.m.WUnlock("updateStatus")
 
-	// TODO: we could have a state machine here, and check for invalid state transitions
 	switch j.status.Type {
-	case Idle:
-		if st == Running {
-			j.status.Type = st
-		}
 	case Running:
-		if st == Exited || st == Killed {
-			j.status.Type = st
-			j.output.Close()
-		}
+		j.status.Type = st
+		j.output.Close()
 	default:
-		return
+		j.status.Type = st
 	}
 }
 

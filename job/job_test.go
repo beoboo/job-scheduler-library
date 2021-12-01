@@ -24,6 +24,14 @@ func TestJobStart(t *testing.T) {
 	assertStatus(t, j, Exited, 0)
 }
 
+func TestUnknownExecutable(t *testing.T) {
+	j := New()
+
+	_ = j.Start("./unknown-executable")
+
+	assertStatus(t, j, Errored, -1)
+}
+
 func TestJobStop(t *testing.T) {
 	j := New()
 
