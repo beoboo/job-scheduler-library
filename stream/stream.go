@@ -35,11 +35,12 @@ func (s *Stream) Read() <-chan *Line {
 		defer close(next)
 
 		for {
+			s.m.Lock()
 			if s.hasData(pos) {
 				next <- s.readNext(pos)
 				pos += 1
+				s.m.Unlock()
 			} else {
-				s.m.Lock()
 				s.cond.Wait()
 
 				if s.closed {
@@ -93,15 +94,9 @@ func (s *Stream) Close() {
 }
 
 func (s *Stream) hasData(pos int) bool {
-	s.m.RLock("hasData")
-	defer s.m.RUnlock("hasData")
-
 	return pos < len(s.lines)
 }
 
 func (s *Stream) readNext(pos int) *Line {
-	s.m.RLock("readNext")
-	defer s.m.RUnlock("readNext")
-
 	return &s.lines[pos]
 }
