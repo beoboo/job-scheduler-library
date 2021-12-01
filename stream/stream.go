@@ -1,9 +1,8 @@
 package stream
 
 import (
-	"github.com/beoboo/job-scheduler/library/log"
+	"github.com/beoboo/job-scheduler/library/logsync"
 	"io"
-	"sync"
 	"time"
 )
 
@@ -12,7 +11,7 @@ type Stream struct {
 	pos    int
 	close  chan bool
 	closed bool
-	m      sync.RWMutex
+	m      logsync.Mutex
 }
 
 // New creates a new Stream.
@@ -20,6 +19,7 @@ func New() *Stream {
 	s := &Stream{
 		lines: Lines{},
 		close: make(chan bool, 1),
+		m:     logsync.New("Stream"),
 	}
 
 	return s
@@ -52,8 +52,8 @@ func (s *Stream) Read() <-chan *Line {
 
 // Write adds a new Line, or returns io.ErrClosedPipe if the stream is closed.
 func (s *Stream) Write(line Line) error {
-	s.wlock("Write")
-	defer s.wunlock("Write")
+	s.m.WLock("Write")
+	defer s.m.WUnlock("Write")
 
 	if s.closed {
 		return io.ErrClosedPipe
@@ -66,16 +66,16 @@ func (s *Stream) Write(line Line) error {
 
 // IsClosed returns if the stream is closed.
 func (s *Stream) IsClosed() bool {
-	s.rlock("IsClosed")
-	defer s.runlock("IsClosed")
+	s.m.RLock("IsClosed")
+	defer s.m.RUnlock("IsClosed")
 
 	return s.closed
 }
 
 // Close closes the stream, so that no new writes can be added to it.
 func (s *Stream) Close() {
-	s.wlock("Close")
-	defer s.wunlock("Close")
+	s.m.WLock("Close")
+	defer s.m.WUnlock("Close")
 
 	if s.closed {
 		return
@@ -87,36 +87,15 @@ func (s *Stream) Close() {
 }
 
 func (s *Stream) hasData(pos int) bool {
-	s.rlock("hasData")
-	defer s.runlock("hasData")
+	s.m.RLock("hasData")
+	defer s.m.RUnlock("hasData")
 
 	return pos < len(s.lines)
 }
 
 func (s *Stream) readNext(pos int) *Line {
-	s.rlock("readNext")
-	defer s.runlock("readNext")
+	s.m.RLock("readNext")
+	defer s.m.RUnlock("readNext")
 
 	return &s.lines[pos]
-}
-
-// These wraps mutex R/W lock and unlock for debugging purposes
-func (s *Stream) rlock(id string) {
-	log.Tracef("Stream read locking %s\n", id)
-	s.m.RLock()
-}
-
-func (s *Stream) runlock(id string) {
-	log.Tracef("Stream read unlocking %s\n", id)
-	s.m.RUnlock()
-}
-
-func (s *Stream) wlock(id string) {
-	log.Tracef("Stream write locking %s\n", id)
-	s.m.Lock()
-}
-
-func (s *Stream) wunlock(id string) {
-	log.Tracef("Stream write unlocking %s\n", id)
-	s.m.Unlock()
 }
