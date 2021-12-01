@@ -53,33 +53,6 @@ func (s *Stream) Read() <-chan *Line {
 	return next
 }
 
-// Read returns a channel of available Lines, if it's not been read, or blocks until the next one is written.
-func (s *Stream) Read2(d string) <-chan *Line {
-	next := make(chan *Line)
-	pos := 0
-
-	s.updateListeners(1)
-
-	go func() {
-		for {
-			if s.hasData(pos) {
-				next <- s.readNext(pos)
-				pos += 1
-			} else {
-				select {
-				case <-s.dataCh:
-					continue
-				case <-s.closeCh:
-					close(next)
-				}
-				break
-			}
-		}
-	}()
-
-	return next
-}
-
 // Write adds a new Line, or returns io.ErrClosedPipe if the stream is closed.
 func (s *Stream) Write(line Line) error {
 	s.m.WLock("Write")
