@@ -17,6 +17,14 @@ func New(parent string) Mutex {
 	}
 }
 
+func (m *Mutex) Lock() {
+	m.m.Lock()
+}
+
+func (m *Mutex) Unlock() {
+	m.m.Unlock()
+}
+
 func (m *Mutex) RLock(fn string) {
 	log.Tracef("%s read locking %s\n", m.parent, fn)
 	m.m.RLock()
@@ -36,6 +44,3 @@ func (m *Mutex) WUnlock(fn string) {
 	log.Tracef("%s write unlocking %s\n", m.parent, fn)
 	m.m.Unlock()
 }
-
-
-

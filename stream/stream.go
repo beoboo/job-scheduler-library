@@ -3,29 +3,27 @@ package stream
 import (
 	"github.com/beoboo/job-scheduler/library/logsync"
 	"io"
-	"log"
+	"sync"
 )
 
 type Stream struct {
 	lines     Lines
 	pos       int
-	dataCh    chan bool
-	closeCh   chan bool
 	closed    bool
 	m         logsync.Mutex
-	ml        logsync.Mutex
+	cond      sync.Cond
 	listeners int
 }
 
 // New creates a new Stream.
 func New() *Stream {
-	return &Stream{
-		lines:   Lines{},
-		dataCh:  make(chan bool),
-		closeCh: make(chan bool, 1),
-		m:       logsync.New("Stream"),
-		ml:      logsync.New("Stream listeners"),
+	s := &Stream{
+		lines: Lines{},
+		m:     logsync.New("Stream"),
 	}
+
+	s.cond.L = &s.m
+	return s
 }
 
 // Read returns a channel of available Lines, if it's not been read, or blocks until the next one is written.
@@ -33,21 +31,23 @@ func (s *Stream) Read() <-chan *Line {
 	next := make(chan *Line)
 	pos := 0
 
-	s.updateListeners(1)
-
 	go func() {
+		defer close(next)
+
 		for {
 			if s.hasData(pos) {
 				next <- s.readNext(pos)
 				pos += 1
 			} else {
-				select {
-				case <-s.dataCh:
-					continue
-				case <-s.closeCh:
-					close(next)
+				s.m.Lock()
+				s.cond.Wait()
+
+				if s.closed {
+					s.m.Unlock()
+					break
 				}
-				break
+
+				s.m.Unlock()
 			}
 		}
 	}()
@@ -66,7 +66,7 @@ func (s *Stream) Write(line Line) error {
 
 	s.lines = append(s.lines, line)
 
-	go s.notifyNewData()
+	s.cond.Broadcast()
 
 	return nil
 }
@@ -87,14 +87,9 @@ func (s *Stream) Close() {
 	if s.closed {
 		return
 	}
-
-	close(s.closeCh)
+	s.cond.Broadcast()
 
 	s.closed = true
-}
-
-func (s *Stream) Unsubscribe() {
-	s.updateListeners(-1)
 }
 
 func (s *Stream) hasData(pos int) bool {
@@ -109,23 +104,4 @@ func (s *Stream) readNext(pos int) *Line {
 	defer s.m.RUnlock("readNext")
 
 	return &s.lines[pos]
-}
-
-func (s *Stream) notifyNewData() {
-	s.ml.RLock("updateListeners")
-	defer s.ml.RUnlock("updateListeners")
-	for i := 0; i < s.listeners; i++ {
-		s.dataCh <- true
-	}
-}
-
-func (s *Stream) updateListeners(num int) {
-	s.ml.WLock("updateListeners")
-	defer s.ml.WUnlock("updateListeners")
-
-	s.listeners += num
-
-	if s.listeners < 0 {
-		log.Fatalf("Cannot have negative listeners")
-	}
 }
