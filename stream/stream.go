@@ -3,32 +3,35 @@ package stream
 import (
 	"github.com/beoboo/job-scheduler/library/logsync"
 	"io"
-	"time"
+	"log"
 )
 
 type Stream struct {
-	lines  Lines
-	pos    int
-	close  chan bool
-	closed bool
-	m      logsync.Mutex
+	lines     Lines
+	pos       int
+	dataCh    chan bool
+	closeCh   chan bool
+	closed    bool
+	m         logsync.Mutex
+	listeners int
 }
 
 // New creates a new Stream.
 func New() *Stream {
-	s := &Stream{
-		lines: Lines{},
-		close: make(chan bool, 1),
-		m:     logsync.New("Stream"),
+	return &Stream{
+		lines:   Lines{},
+		dataCh:  make(chan bool),
+		closeCh: make(chan bool, 1),
+		m:       logsync.New("Stream"),
 	}
-
-	return s
 }
 
 // Read returns a channel of available Lines, if it's not been read, or blocks until the next one is written.
 func (s *Stream) Read() <-chan *Line {
 	next := make(chan *Line)
 	pos := 0
+
+	s.updateListeners(1)
 
 	go func() {
 		for {
@@ -37,9 +40,36 @@ func (s *Stream) Read() <-chan *Line {
 				pos += 1
 			} else {
 				select {
-				case <-time.After(100 * time.Millisecond):
+				case <-s.dataCh:
 					continue
-				case <-s.close:
+				case <-s.closeCh:
+					close(next)
+				}
+				break
+			}
+		}
+	}()
+
+	return next
+}
+
+// Read returns a channel of available Lines, if it's not been read, or blocks until the next one is written.
+func (s *Stream) Read2(d string) <-chan *Line {
+	next := make(chan *Line)
+	pos := 0
+
+	s.updateListeners(1)
+
+	go func() {
+		for {
+			if s.hasData(pos) {
+				next <- s.readNext(pos)
+				pos += 1
+			} else {
+				select {
+				case <-s.dataCh:
+					continue
+				case <-s.closeCh:
 					close(next)
 				}
 				break
@@ -61,6 +91,8 @@ func (s *Stream) Write(line Line) error {
 
 	s.lines = append(s.lines, line)
 
+	s.notifyNewData()
+
 	return nil
 }
 
@@ -81,9 +113,14 @@ func (s *Stream) Close() {
 		return
 	}
 
-	close(s.close)
+	close(s.closeCh)
+	close(s.dataCh)
 
 	s.closed = true
+}
+
+func (s *Stream) Unsubscribe() {
+	s.updateListeners(-1)
 }
 
 func (s *Stream) hasData(pos int) bool {
@@ -98,4 +135,26 @@ func (s *Stream) readNext(pos int) *Line {
 	defer s.m.RUnlock("readNext")
 
 	return &s.lines[pos]
+}
+
+func (s *Stream) notifyNewData() {
+	go func() {
+		s.m.RLock("notifyNewData")
+		defer s.m.RUnlock("notifyNewData")
+
+		for i := 0; i < s.listeners; i++ {
+			s.dataCh <- true
+		}
+	}()
+}
+
+func (s *Stream) updateListeners(num int) {
+	s.m.WLock("updateListeners")
+	defer s.m.WUnlock("updateListeners")
+
+	s.listeners += num
+
+	if s.listeners < 0 {
+		log.Fatalf("Cannot have negative listeners")
+	}
 }

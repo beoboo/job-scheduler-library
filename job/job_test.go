@@ -119,6 +119,8 @@ func assertJobOutput(t *testing.T, j *Job, expected []string) {
 
 func assertOutput(t *testing.T, o *stream.Stream, expected []string) {
 	lines := o.Read()
+	defer o.Unsubscribe()
+
 	for _, e := range expected {
 		line := <-lines
 

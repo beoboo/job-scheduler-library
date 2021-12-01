@@ -28,7 +28,7 @@ type Logger struct {
 
 func init() {
 	logger = Logger{
-		level: DEBUG,
+		level: INFO,
 		trace: color.New(color.FgBlue),
 		debug: color.New(color.FgHiBlack),
 		info:  color.New(color.FgCyan),

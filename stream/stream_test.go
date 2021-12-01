@@ -26,7 +26,7 @@ func TestStreamWrite(t *testing.T) {
 	assertRead(t, s, expected)
 }
 
-func TestStreamResetPos(t *testing.T) {
+func TestStreamRewind(t *testing.T) {
 	s := New()
 	defer s.Close()
 
@@ -84,6 +84,31 @@ func TestStreamCannotWriteToClosedStream(t *testing.T) {
 	}
 }
 
+func TestUnsubscribe(t *testing.T) {
+	s := New()
+	defer s.Close()
+
+	go func() {
+		s.Read()
+		defer s.Unsubscribe()
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		err := s.Write(buildLine("line"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		wg.Done()
+	}()
+
+	wg.Wait()
+}
+
 func TestStreamConcurrentReads(t *testing.T) {
 	s := New()
 	res1 := ""
@@ -103,7 +128,7 @@ func TestStreamConcurrentReads(t *testing.T) {
 
 	// Starts before the writes
 	go func() {
-		for l := range s.Read() {
+		for l := range s.Read2("l1") {
 			res1 += string(l.Text)
 		}
 		wg.Done()
@@ -112,7 +137,7 @@ func TestStreamConcurrentReads(t *testing.T) {
 	// Starts after the first write, but before the second
 	go func() {
 		time.Sleep(50 * time.Millisecond)
-		for l := range s.Read() {
+		for l := range s.Read2("l2") {
 			res2 += string(l.Text)
 		}
 		wg.Done()
@@ -148,6 +173,7 @@ func buildLine(t string) Line {
 
 func assertRead(t *testing.T, s *Stream, expected string) {
 	l := <-s.Read()
+	defer s.Unsubscribe()
 
 	if string(l.Text) != expected {
 		t.Fatalf("Didn't read successfully, expected \"%s\", got \"%s\"", expected, l.Text)
