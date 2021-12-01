@@ -1,13 +1,14 @@
 package job
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
 	"github.com/google/uuid"
-	"io"
 	"os/exec"
+	"sync"
 	"time"
 )
 
@@ -123,24 +124,31 @@ func (j *Job) run(started chan error) error {
 	if err != nil {
 		return err
 	}
+
 	stderr, err := j.cmd.StderrPipe()
 	if err != nil {
 		return err
 	}
+
+	stdoutReader := bufio.NewReader(stdout)
+	stderrReader := bufio.NewReader(stderr)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go j.pipe(stream.Output, stdoutReader, &wg)
+	go j.pipe(stream.Error, stderrReader, &wg)
 
 	err = j.cmd.Start()
 	if err != nil {
 		return err
 	}
 
-	started <- err
-
 	j.updateStatus(Running)
 
-	j.pipe(stream.Output, stdout)
-	j.pipe(stream.Error, stderr)
+	started <- err
 
-	// Wait is expected to fail for three reasons
+	wg.Wait()
+	// Wait is expected to fail for three reasons, none of which apply here
 	// 1. the process is not started (but that doesn't apply, or it would have exited above)
 	// 2. it's called twice (not the case, again)
 	// 3. the process is killed (and we can just log this and return the status and exit code)
@@ -160,30 +168,31 @@ func (j *Job) run(started chan error) error {
 	return nil
 }
 
-func (j *Job) pipe(st stream.StreamType, pipe io.ReadCloser) {
-	go func() {
-		for {
-			buf := make([]byte, BUFFER_SIZE)
-			n, err := pipe.Read(buf)
+func (j *Job) pipe(st stream.StreamType, pipe *bufio.Reader, wg *sync.WaitGroup) {
+	for {
+		buf := make([]byte, BUFFER_SIZE)
+		n, err := pipe.Read(buf)
 
-			if n > 0 {
-				log.Debugf("[%s] %s", st, buf[:n])
+		if n > 0 {
+			log.Debugf("[%s] %s", st, buf[:n])
 
-				err := j.write(st, buf[:n])
-				if err != nil {
-					// The stream is already has been closed, due to the updated status of the job (that's
-					// no more running). This means that the underlying execution has already finished, and
-					// its pipes are already closed.
-					break
-				}
-			}
-
+			err := j.write(st, buf[:n])
 			if err != nil {
-				log.Debugf("Pipe closed: %s\n", err)
+				// The stream is already has been closed, due to the updated status of the job (that's
+				// no more running). This means that the underlying execution has already finished, and
+				// its pipes are already closed.
+				log.Debugf("Write error: %s\n", err)
 				break
 			}
 		}
-	}()
+
+		if err != nil {
+			log.Debugf("Pipe closed: %s\n", err)
+			break
+		}
+	}
+
+	wg.Done()
 }
 
 func (j *Job) write(st stream.StreamType, text []byte) error {

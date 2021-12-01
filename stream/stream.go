@@ -13,6 +13,7 @@ type Stream struct {
 	closeCh   chan bool
 	closed    bool
 	m         logsync.Mutex
+	ml        logsync.Mutex
 	listeners int
 }
 
@@ -23,6 +24,7 @@ func New() *Stream {
 		dataCh:  make(chan bool),
 		closeCh: make(chan bool, 1),
 		m:       logsync.New("Stream"),
+		ml:      logsync.New("Stream listeners"),
 	}
 }
 
@@ -64,7 +66,7 @@ func (s *Stream) Write(line Line) error {
 
 	s.lines = append(s.lines, line)
 
-	s.notifyNewData()
+	go s.notifyNewData()
 
 	return nil
 }
@@ -87,7 +89,6 @@ func (s *Stream) Close() {
 	}
 
 	close(s.closeCh)
-	close(s.dataCh)
 
 	s.closed = true
 }
@@ -111,19 +112,16 @@ func (s *Stream) readNext(pos int) *Line {
 }
 
 func (s *Stream) notifyNewData() {
-	go func() {
-		s.m.RLock("notifyNewData")
-		defer s.m.RUnlock("notifyNewData")
-
-		for i := 0; i < s.listeners; i++ {
-			s.dataCh <- true
-		}
-	}()
+	s.ml.RLock("updateListeners")
+	defer s.ml.RUnlock("updateListeners")
+	for i := 0; i < s.listeners; i++ {
+		s.dataCh <- true
+	}
 }
 
 func (s *Stream) updateListeners(num int) {
-	s.m.WLock("updateListeners")
-	defer s.m.WUnlock("updateListeners")
+	s.ml.WLock("updateListeners")
+	defer s.ml.WUnlock("updateListeners")
 
 	s.listeners += num
 
