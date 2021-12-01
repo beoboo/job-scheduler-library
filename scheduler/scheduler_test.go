@@ -66,6 +66,7 @@ func assertOutput(t *testing.T, s *Scheduler, id string, expected []string) {
 	}
 
 	lines := o.Read()
+	defer o.Unsubscribe()
 	for _, e := range expected {
 		line := <-lines
 
