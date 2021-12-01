@@ -1,4 +1,4 @@
-package job
+package scheduler
 
 import (
 	"bufio"
@@ -16,26 +16,26 @@ const (
 	BUFFER_SIZE = 1024
 )
 
-// Job wraps the execution of a process, capturing its stdout and stderr streams,
+// job wraps the execution of a process, capturing its stdout and stderr streams,
 // and providing the process status
-type Job struct {
-	id     string
-	cmd    *exec.Cmd
-	output *stream.Stream
-	done   chan bool
-	status *Status
-	m      logsync.Mutex
+type job struct {
+	id       string
+	cmd      *exec.Cmd
+	outputSt *stream.Stream
+	done     chan bool
+	sts      *JobStatus
+	m        logsync.Mutex
 }
 
-// New creates a new Job
-func New() *Job {
+// newJob creates a new job
+func newJob() *job {
 	id := generateRandomId()
-	p := &Job{
-		id:     id,
-		done:   make(chan bool),
-		output: stream.New(),
-		status: &Status{Type: Idle, ExitCode: -1},
-		m:      logsync.New(fmt.Sprintf("Job %s", id)),
+	p := &job{
+		id:       id,
+		done:     make(chan bool),
+		outputSt: stream.New(),
+		sts:      &JobStatus{Type: Idle, ExitCode: -1},
+		m:        logsync.New(fmt.Sprintf("job %s", id)),
 	}
 
 	return p
@@ -45,19 +45,14 @@ func generateRandomId() string {
 	return uuid.New().String()
 }
 
-// Id returns the job ID
-func (j *Job) Id() string {
-	return j.id
-}
-
-// Start starts the execution of a process through a parent/child mechanism
-func (j *Job) Start(executable string, args ...string) error {
+// startIsolated starts the execution of a process through a parent/child mechanism
+func (j *job) startIsolated(executable string, args ...string) error {
 	// TODO: This will run the process through /proc/self/exe (or similar). For now just wraps StartChild
-	return j.StartChild(executable, args...)
+	return j.start(executable, args...)
 }
 
-// StartChild starts the execution of a child process, capturing its output
-func (j *Job) StartChild(executable string, args ...string) error {
+// start starts the execution of a child process, capturing its output
+func (j *job) start(executable string, args ...string) error {
 	cmd := exec.Command(executable, args...)
 	// TODO: here we'll set clone flags
 	// TODO: here we'll mounts and cgroups for the child process
@@ -81,11 +76,11 @@ func (j *Job) StartChild(executable string, args ...string) error {
 	return err
 }
 
-// Stop stops a running process
-func (j *Job) Stop() error {
-	j.m.WLock("Stop")
+// stop stops a running process
+func (j *job) stop() error {
+	j.m.WLock("stop")
 	err := j.cmd.Process.Kill()
-	j.m.WUnlock("Stop")
+	j.m.WUnlock("stop")
 
 	if err != nil {
 		return fmt.Errorf("cannot kill job %d: (%s)", j.pid(), err)
@@ -95,29 +90,29 @@ func (j *Job) Stop() error {
 	return nil
 }
 
-// Output returns the stream of captured stdout/stderr of the running process.
-func (j *Job) Output() *stream.Stream {
-	j.m.RLock("Output")
-	defer j.m.RUnlock("Output")
+// output returns the stream of captured stdout/stderr of the running process.
+func (j *job) output() *stream.Stream {
+	j.m.RLock("output")
+	defer j.m.RUnlock("output")
 
-	return j.output
+	return j.outputSt
 }
 
-// Status returns the current status of the Job
-func (j *Job) Status() *Status {
-	j.m.RLock("Status")
-	defer j.m.RUnlock("Status")
+// status returns the current status of the job
+func (j *job) status() *JobStatus {
+	j.m.RLock("status")
+	defer j.m.RUnlock("status")
 
-	// Status needs to be cloned or a race condition might happen (since it's a reference)
-	return j.status.Clone()
+	// JobStatus needs to be cloned or a race condition might happen (since it's a reference)
+	return j.sts.clone()
 }
 
-// Wait blocks until the process is completed
-func (j *Job) Wait() {
+// wait blocks until the process is completed
+func (j *job) wait() {
 	<-j.done
 }
 
-func (j *Job) run(started chan error) error {
+func (j *job) run(started chan error) error {
 	log.Debugf("Running: %s\n", j.cmd.Path)
 
 	stdout, err := j.cmd.StdoutPipe()
@@ -148,7 +143,7 @@ func (j *Job) run(started chan error) error {
 	started <- err
 
 	wg.Wait()
-	// Wait is expected to fail for three reasons, none of which apply here
+	// wait is expected to fail for three reasons, none of which apply here
 	// 1. the process is not started (but that doesn't apply, or it would have exited above)
 	// 2. it's called twice (not the case, again)
 	// 3. the process is killed (and we can just log this and return the status and exit code)
@@ -157,7 +152,7 @@ func (j *Job) run(started chan error) error {
 	j.updateExitCode()
 
 	if err != nil {
-		log.Debugf("Error calling Wait: %v\n", err)
+		log.Debugf("Error calling wait: %v\n", err)
 		j.updateStatus(Errored)
 	} else {
 		j.updateStatus(Exited)
@@ -168,7 +163,7 @@ func (j *Job) run(started chan error) error {
 	return nil
 }
 
-func (j *Job) pipe(st stream.StreamType, pipe *bufio.Reader, wg *sync.WaitGroup) {
+func (j *job) pipe(st stream.StreamType, pipe *bufio.Reader, wg *sync.WaitGroup) {
 	for {
 		buf := make([]byte, BUFFER_SIZE)
 		n, err := pipe.Read(buf)
@@ -195,37 +190,37 @@ func (j *Job) pipe(st stream.StreamType, pipe *bufio.Reader, wg *sync.WaitGroup)
 	wg.Done()
 }
 
-func (j *Job) write(st stream.StreamType, text []byte) error {
+func (j *job) write(st stream.StreamType, text []byte) error {
 	j.m.WLock("pipe")
 	defer j.m.WUnlock("pipe")
 
-	return j.output.Write(stream.Line{
+	return j.outputSt.Write(stream.Line{
 		Time: time.Now(),
 		Type: st,
 		Text: text,
 	})
 }
 
-func (j *Job) pid() int {
+func (j *job) pid() int {
 	return j.cmd.Process.Pid
 }
 
-func (j *Job) updateStatus(st StatusType) {
+func (j *job) updateStatus(st StatusType) {
 	j.m.WLock("updateStatus")
 	defer j.m.WUnlock("updateStatus")
 
-	switch j.status.Type {
+	switch j.sts.Type {
 	case Running:
-		j.status.Type = st
-		j.output.Close()
+		j.sts.Type = st
+		j.outputSt.Close()
 	default:
-		j.status.Type = st
+		j.sts.Type = st
 	}
 }
 
-func (j *Job) updateExitCode() {
+func (j *job) updateExitCode() {
 	j.m.WLock("updateExitCode")
 	defer j.m.WUnlock("updateExitCode")
 
-	j.status.ExitCode = j.cmd.ProcessState.ExitCode()
+	j.sts.ExitCode = j.cmd.ProcessState.ExitCode()
 }

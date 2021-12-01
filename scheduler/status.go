@@ -1,4 +1,4 @@
-package job
+package scheduler
 
 import "fmt"
 
@@ -12,7 +12,7 @@ const (
 	Errored StatusType = 4
 )
 
-type Status struct {
+type JobStatus struct {
 	Type     StatusType
 	ExitCode int
 }
@@ -32,7 +32,7 @@ func (st StatusType) String() string {
 	}
 }
 
-func (s *Status) String() string {
+func (s *JobStatus) String() string {
 	switch s.Type {
 	case Idle | Running:
 		return s.Type.String()
@@ -41,8 +41,8 @@ func (s *Status) String() string {
 	}
 }
 
-func (s *Status) Clone() *Status {
-	return &Status{
+func (s *JobStatus) clone() *JobStatus {
+	return &JobStatus{
 		Type:     s.Type,
 		ExitCode: s.ExitCode,
 	}

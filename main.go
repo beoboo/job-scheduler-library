@@ -2,15 +2,14 @@ package main
 
 import (
 	"flag"
-	"github.com/beoboo/job-scheduler/library/job"
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/scheduler"
+	"github.com/beoboo/job-scheduler/library/stream"
 	"os"
-	"strings"
 )
 
 func main() {
-	usage := "Usage: examples|schedule|run\n"
+	usage := "Usage: examples|run|child\n"
 
 	if !isRoot() {
 		log.Fatalln("Please run this with root privileges.")
@@ -26,8 +25,6 @@ func main() {
 	switch command {
 	case "examples":
 		// this will run some concurrent examples
-	case "schedule":
-		schedule(args...)
 	case "run":
 		run(args...)
 	case "child":
@@ -42,7 +39,7 @@ func isRoot() bool {
 }
 
 // Runs a job through the scheduler
-func schedule(args ...string) {
+func run(args ...string) {
 	if len(args) < 1 {
 		log.Fatalf("Usage: schedule [--cpu N] [--io N] [--mem N] EXECUTABLE [ARGS]\n")
 	}
@@ -60,10 +57,11 @@ func schedule(args ...string) {
 }
 
 func runScheduler(executable string, params ...string) {
-	s := scheduler.New(true)
+	// TODO: map "dummy" to the runner (i.e. /proc/self/exe)
+	s := scheduler.New("dummy")
 
 	id := do(s.Start(executable, params...))
-	log.Infof("Job \"%s\" started\n", id)
+	log.Infof("job \"%s\" started\n", id)
 
 	printStatus(s.Status(id))
 
@@ -76,42 +74,38 @@ func runScheduler(executable string, params ...string) {
 	printStatus(s.Status(id))
 }
 
-// Runs a job without the scheduler, to verify job configuration and implementation
-// Wraps the job execution through a call to /proc/self/exe in order to provide proper isolation
-func run(args ...string) {
-	if len(args) < 1 {
-		log.Fatalf("Usage: run [--cpu N] [--io N] [--mem N] EXECUTABLE [ARGS]\n")
-	}
+func do(val string, err error) string {
+	check(err)
 
-	err := flag.CommandLine.Parse(args)
-	if err != nil {
-		log.Fatalf("Cannot parse arguments: %s\n", err)
-	}
-	remaining := flag.Args()
-
-	executable := remaining[0]
-	params := remaining[1:]
-
-	startJob(executable, params...)
+	return val
 }
 
-func startJob(executable string, params ...string) {
-	j := job.New()
-	err := j.StartChild(executable, params...)
+func check(err error) {
 	if err != nil {
-		log.Fatalf("Cannot run \"%s\": %s\n", strings.Join(params, " "), err)
+		log.Fatalf("Unexpected: %s\n", err)
 	}
+}
 
-	log.Infof("Job \"%s\" started\n", j.Id())
+func printOutput(o *stream.Stream) {
+	s := o.Read()
 
-	o := j.Output()
+	for {
+		line := <-s
+		if line == nil {
+			break
+		}
 
-	printOutput(o)
+		if line.Type == stream.Output {
+			log.Infof("%s", line)
+		} else {
+			log.Warnf("%s", line)
+		}
+	}
+}
 
-	j.Wait()
-
-	o = j.Output()
-	printOutput(o)
-
-	printStatus(j.Status(), nil)
+func printStatus(status *scheduler.JobStatus, err error) {
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Infof("job status: %s\n", status)
 }
