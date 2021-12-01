@@ -3,11 +3,11 @@ package job
 import (
 	"fmt"
 	"github.com/beoboo/job-scheduler/library/log"
+	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
 	"github.com/google/uuid"
 	"io"
 	"os/exec"
-	"sync"
 	"time"
 )
 
@@ -23,16 +23,18 @@ type Job struct {
 	output *stream.Stream
 	done   chan bool
 	status *Status
-	m      sync.RWMutex
+	m      logsync.Mutex
 }
 
 // New creates a new Job
 func New() *Job {
+	id := generateRandomId()
 	p := &Job{
-		id:     generateRandomId(),
+		id:     id,
 		done:   make(chan bool),
 		output: stream.New(),
 		status: &Status{Type: Idle, ExitCode: -1},
+		m:      logsync.New(fmt.Sprintf("Job %s", id)),
 	}
 
 	return p
@@ -76,9 +78,9 @@ func (j *Job) StartChild(executable string, args ...string) error {
 
 // Stop stops a running process
 func (j *Job) Stop() error {
-	j.wlock("Stop")
+	j.m.WLock("Stop")
 	err := j.cmd.Process.Kill()
-	j.wunlock("Stop")
+	j.m.WUnlock("Stop")
 
 	if err != nil {
 		return fmt.Errorf("cannot kill job %d: (%s)", j.pid(), err)
@@ -90,16 +92,16 @@ func (j *Job) Stop() error {
 
 // Output returns the stream of captured stdout/stderr of the running process.
 func (j *Job) Output() *stream.Stream {
-	j.wlock("Output")
-	defer j.wunlock("Output")
+	j.m.WLock("Output")
+	defer j.m.WUnlock("Output")
 
 	return j.output
 }
 
 // Status returns the current status of the Job
 func (j *Job) Status() *Status {
-	j.rlock("Status")
-	defer j.runlock("Status")
+	j.m.RLock("Status")
+	defer j.m.RUnlock("Status")
 
 	// Status needs to be cloned or a race condition might happen (since it's a reference)
 	return j.status.Clone()
@@ -168,8 +170,8 @@ func (j *Job) pipe(channel stream.Channel, pipe io.ReadCloser) {
 }
 
 func (j *Job) write(channel stream.Channel, text []byte) error {
-	j.wlock("pipe")
-	defer j.wunlock("pipe")
+	j.m.WLock("pipe")
+	defer j.m.WUnlock("pipe")
 
 	return j.output.Write(stream.Line{
 		Channel: channel,
@@ -184,8 +186,8 @@ func (j *Job) pid() int {
 }
 
 func (j *Job) updateStatus(st StatusType) {
-	j.wlock("updateStatus")
-	defer j.wunlock("updateStatus")
+	j.m.WLock("updateStatus")
+	defer j.m.WUnlock("updateStatus")
 
 	// TODO: we could have a state machine here, and check for invalid state transitions
 	switch j.status.Type {
@@ -204,29 +206,8 @@ func (j *Job) updateStatus(st StatusType) {
 }
 
 func (j *Job) updateExitCode() {
-	j.wlock("updateExitCode")
-	defer j.wunlock("updateExitCode")
+	j.m.WLock("updateExitCode")
+	defer j.m.WUnlock("updateExitCode")
 
 	j.status.ExitCode = j.cmd.ProcessState.ExitCode()
-}
-
-// These wraps mutex R/W lock and unlock for debugging purposes
-func (j *Job) rlock(id string) {
-	log.Tracef("Job read locking %s\n", id)
-	j.m.RLock()
-}
-
-func (j *Job) runlock(id string) {
-	log.Tracef("Job read unlocking %s\n", id)
-	j.m.RUnlock()
-}
-
-func (j *Job) wlock(id string) {
-	log.Tracef("Job write locking %s\n", id)
-	j.m.Lock()
-}
-
-func (j *Job) wunlock(id string) {
-	log.Tracef("Job write unlocking %s\n", id)
-	j.m.Unlock()
 }

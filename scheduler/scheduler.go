@@ -6,14 +6,14 @@ import (
 	"github.com/beoboo/job-scheduler/library/helpers"
 	"github.com/beoboo/job-scheduler/library/job"
 	"github.com/beoboo/job-scheduler/library/log"
+	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
-	"sync"
 )
 
 type Scheduler struct {
 	runJobAsChild bool // For debugging purposes only
 	jobs          map[string]*job.Job
-	m             sync.RWMutex
+	m             logsync.Mutex
 }
 
 // New creates a scheduler.
@@ -21,6 +21,7 @@ func New(runJobAsChild bool) *Scheduler {
 	return &Scheduler{
 		runJobAsChild: runJobAsChild,
 		jobs:          make(map[string]*job.Job),
+		m:             logsync.New("Scheduler"),
 	}
 }
 
@@ -45,8 +46,8 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	log.Debugf("Job ID: %s\n", j.Id())
 	log.Debugf("Status: %s\n", j.Status())
 
-	s.wlock("Start")
-	defer s.wunlock("Start")
+	s.m.WLock("Start")
+	defer s.m.WUnlock("Start")
 
 	s.jobs[j.Id()] = j
 	return j.Id(), nil
@@ -56,8 +57,8 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 func (s *Scheduler) Stop(id string) (*job.Status, error) {
 	log.Debugf("Stopping job %s\n", id)
 
-	s.rlock("Stop")
-	defer s.runlock("Stop")
+	s.m.RLock("Stop")
+	defer s.m.RUnlock("Stop")
 	j, ok := s.jobs[id]
 
 	if !ok {
@@ -76,8 +77,8 @@ func (s *Scheduler) Stop(id string) (*job.Status, error) {
 func (s *Scheduler) Status(id string) (*job.Status, error) {
 	log.Debugf("Checking status for job \"%s\"\n", id)
 
-	s.rlock("Status")
-	defer s.runlock("Status")
+	s.m.RLock("Status")
+	defer s.m.RUnlock("Status")
 
 	j, ok := s.jobs[id]
 
@@ -92,8 +93,8 @@ func (s *Scheduler) Status(id string) (*job.Status, error) {
 func (s *Scheduler) Output(id string) (*stream.Stream, error) {
 	log.Debugf("Streaming output for job \"%s\"\n", id)
 
-	s.rlock("Output")
-	defer s.runlock("Output")
+	s.m.RLock("Output")
+	defer s.m.RUnlock("Output")
 	j, ok := s.jobs[id]
 
 	if !ok {
@@ -105,29 +106,8 @@ func (s *Scheduler) Output(id string) (*stream.Stream, error) {
 
 // Size returns the number of stored jobs.
 func (s *Scheduler) Size() int {
-	s.rlock("Size")
-	defer s.runlock("Size")
+	s.m.RLock("Size")
+	defer s.m.RUnlock("Size")
 
 	return len(s.jobs)
-}
-
-// These wraps mutex R/W lock and unlock for debugging purposes
-func (s *Scheduler) rlock(id string) {
-	log.Tracef("Scheduler read locking %s\n", id)
-	s.m.RLock()
-}
-
-func (s *Scheduler) runlock(id string) {
-	log.Tracef("Scheduler read unlocking %s\n", id)
-	s.m.RUnlock()
-}
-
-func (s *Scheduler) wlock(id string) {
-	log.Tracef("Scheduler write locking %s\n", id)
-	s.m.Lock()
-}
-
-func (s *Scheduler) wunlock(id string) {
-	log.Tracef("Scheduler write unlocking %s\n", id)
-	s.m.Unlock()
 }
