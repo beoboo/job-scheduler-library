@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/beoboo/job-scheduler/library/job"
 	"github.com/beoboo/job-scheduler/library/log"
-	"github.com/beoboo/job-scheduler/library/status"
 	"github.com/beoboo/job-scheduler/library/stream"
 )
 
@@ -35,7 +35,7 @@ func printOutput(o *stream.Stream) {
 	}
 }
 
-func printStatus(status *status.Status, err error) {
+func printStatus(status *job.Status, err error) {
 	if err != nil {
 		log.Fatalln(err)
 	}

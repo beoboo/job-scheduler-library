@@ -1,8 +1,7 @@
 package job
 
 import (
-	"github.com/beoboo/job-scheduler/library/assert"
-	"github.com/beoboo/job-scheduler/library/status"
+	"github.com/beoboo/job-scheduler/library/stream"
 	"testing"
 	"time"
 )
@@ -10,11 +9,11 @@ import (
 func TestJobStart(t *testing.T) {
 	j := New()
 
-	assertStatus(t, j, status.Idle())
+	assertStatus(t, j, Idle, -1)
 
 	_ = j.Start("sleep", "0.1")
 
-	assertStatus(t, j, status.Running())
+	assertStatus(t, j, Running, -1)
 
 	if j.Id() == "" {
 		t.Fatalf("Job PID should not be empty")
@@ -22,32 +21,32 @@ func TestJobStart(t *testing.T) {
 
 	j.Wait()
 
-	assertStatus(t, j, status.Exited(0))
+	assertStatus(t, j, Exited, 0)
 }
 
 func TestJobStop(t *testing.T) {
 	j := New()
 
-	assertStatus(t, j, status.Idle())
+	assertStatus(t, j, Idle, -1)
 
 	_ = j.Start("sleep", "1")
 
-	assertStatus(t, j, status.Running())
+	assertStatus(t, j, Running, -1)
 
 	if j.Id() == "" {
 		t.Fatalf("Job PID should not be empty")
 	}
 
 	_ = j.Stop()
-	assertStatus(t, j, status.Killed(-1))
+	assertStatus(t, j, Killed, -1)
 }
 
 func TestJobOutput(t *testing.T) {
 	j := New()
 
-	assertStatus(t, j, status.Idle())
+	assertStatus(t, j, Idle, -1)
 
-	expectedLines := []string{
+	expected := []string{
 		"Running for 2 times, sleeping for 0.1\n",
 		"#1\n",
 		"#2\n",
@@ -58,19 +57,19 @@ func TestJobOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertOutput(t, j, expectedLines)
+	assertJobOutput(t, j, expected)
 
 	j.Wait()
 
-	assertStatus(t, j, status.Exited(0))
+	assertStatus(t, j, Exited, 0)
 
-	assertOutput(t, j, expectedLines)
+	assertJobOutput(t, j, expected)
 }
 
 func TestJobMultipleReaders(t *testing.T) {
 	j := New()
 
-	expectedLines := []string{
+	expected := []string{
 		"Running for 2 times, sleeping for 0.1\n",
 		"#1\n",
 		"#2\n",
@@ -89,34 +88,34 @@ func TestJobMultipleReaders(t *testing.T) {
 
 	j.Wait()
 
-	assert.AssertOutput(t, o1, expectedLines)
-	assert.AssertOutput(t, o2, expectedLines)
+	assertOutput(t, o1, expected)
+	assertOutput(t, o2, expected)
 }
 
-// * Add resource control for CPU, Memory and Disk IO per job using cgroups.
-// * Add resource isolation for using PID, mount, and networking namespaces.
-func TestJobNamespaces(t *testing.T) {
-	j := New()
+func assertStatus(t *testing.T, j *Job, expectedType StatusType, expectedExitCode int) {
+	st := j.Status()
 
-	assertStatus(t, j, status.Idle())
-
-	_ = j.Start("sleep", "1")
-
-	assertStatus(t, j, status.Running())
-
-	if j.Id() == "" {
-		t.Fatalf("Job PID should not be empty")
+	if st.Type != expectedType {
+		t.Fatalf("Job status should be \"%s\", got \"%s\"", expectedType, st.Type)
 	}
-
-	_ = j.Stop()
-	assertStatus(t, j, status.Killed(-1))
+	if st.ExitCode != expectedExitCode {
+		t.Fatalf("Job exit code should be \"%d\", got \"%d\"", expectedExitCode, st.ExitCode)
+	}
 }
 
-func assertStatus(t *testing.T, j *Job, expected *status.Status) {
-	time.Sleep(10 * time.Millisecond)
-	assert.AssertStatus(t, j.Status(), expected)
+func assertJobOutput(t *testing.T, j *Job, expected []string) {
+	o := j.Output()
+
+	assertOutput(t, o, expected)
 }
 
-func assertOutput(t *testing.T, j *Job, expected []string) {
-	assert.AssertOutput(t, j.Output(), expected)
+func assertOutput(t *testing.T, o *stream.Stream, expected []string) {
+	lines := o.Read()
+	for _, e := range expected {
+		line := <-lines
+
+		if string(line.Text) != e {
+			t.Fatalf("Job output should contain \"%s\"%d, got \"%s\"%d", e, len(e), line.Text, len(line.Text))
+		}
+	}
 }

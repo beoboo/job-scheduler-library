@@ -3,7 +3,6 @@ package job
 import (
 	"fmt"
 	"github.com/beoboo/job-scheduler/library/log"
-	"github.com/beoboo/job-scheduler/library/status"
 	"github.com/beoboo/job-scheduler/library/stream"
 	"github.com/google/uuid"
 	"io"
@@ -23,7 +22,7 @@ type Job struct {
 	cmd    *exec.Cmd
 	output *stream.Stream
 	done   chan bool
-	status *status.Status
+	status *Status
 	m      sync.RWMutex
 }
 
@@ -33,7 +32,7 @@ func New() *Job {
 		id:     generateRandomId(),
 		done:   make(chan bool),
 		output: stream.New(),
-		status: status.Idle(),
+		status: &Status{Type: Idle, ExitCode: -1},
 	}
 
 	return p
@@ -85,7 +84,7 @@ func (j *Job) Stop() error {
 		return fmt.Errorf("cannot kill job %d: (%s)", j.pid(), err)
 	}
 
-	j.updateStatus(status.KILLED)
+	j.updateStatus(Killed)
 	return nil
 }
 
@@ -98,7 +97,7 @@ func (j *Job) Output() *stream.Stream {
 }
 
 // Status returns the current status of the Job
-func (j *Job) Status() *status.Status {
+func (j *Job) Status() *Status {
 	j.rlock("Status")
 	defer j.runlock("Status")
 
@@ -124,7 +123,7 @@ func (j *Job) run(started chan error) {
 		return
 	}
 
-	j.updateStatus(status.RUNNING)
+	j.updateStatus(Running)
 
 	j.pipe(stream.Output, stdout)
 	j.pipe(stream.Error, stderr)
@@ -138,7 +137,7 @@ func (j *Job) run(started chan error) {
 	if err != nil {
 		log.Debugf("Error calling Wait: %v\n", err)
 	} else {
-		j.updateStatus(status.EXITED)
+		j.updateStatus(Exited)
 	}
 
 	j.done <- true
@@ -184,19 +183,19 @@ func (j *Job) pid() int {
 	return j.cmd.Process.Pid
 }
 
-func (j *Job) updateStatus(st string) {
+func (j *Job) updateStatus(st StatusType) {
 	j.wlock("updateStatus")
 	defer j.wunlock("updateStatus")
 
 	// TODO: we could have a state machine here, and check for invalid state transitions
-	switch j.status.Value {
-	case status.IDLE:
-		if st == status.RUNNING {
-			j.status.Value = st
+	switch j.status.Type {
+	case Idle:
+		if st == Running {
+			j.status.Type = st
 		}
-	case status.RUNNING:
-		if st == status.EXITED || st == status.KILLED {
-			j.status.Value = st
+	case Running:
+		if st == Exited || st == Killed {
+			j.status.Type = st
 			j.output.Close()
 		}
 	default:
