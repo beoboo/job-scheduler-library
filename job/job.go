@@ -194,13 +194,11 @@ func (j *Job) updateStatus(st string) {
 		if st == status.RUNNING {
 			j.status.Value = st
 		}
-		break
 	case status.RUNNING:
 		if st == status.EXITED || st == status.KILLED {
 			j.status.Value = st
 			j.output.Close()
 		}
-		break
 	default:
 		return
 	}
