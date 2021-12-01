@@ -157,10 +157,6 @@ func (j *Job) pipe(channel stream.Channel, pipe io.ReadCloser) {
 		for {
 			buf := make([]byte, BUFFER_SIZE)
 			n, err := pipe.Read(buf)
-			if err != nil {
-				log.Debugf("Pipe closed: %s\n", err)
-				break
-			}
 
 			if n > 0 {
 				log.Debugf("[%s] %s", channel, buf[:n])
@@ -169,7 +165,10 @@ func (j *Job) pipe(channel stream.Channel, pipe io.ReadCloser) {
 				if err != nil {
 					break
 				}
-			} else {
+			}
+
+			if err != nil {
+				log.Debugf("Pipe closed: %s\n", err)
 				break
 			}
 		}
