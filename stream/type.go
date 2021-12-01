@@ -1,13 +1,13 @@
 package stream
 
-type Channel int
+type StreamType int
 
 const (
-	Output Channel = 1
-	Error  Channel = 2
+	Output StreamType = 1
+	Error  StreamType = 2
 )
 
-func (c Channel) String() string {
+func (c StreamType) String() string {
 	switch c {
 	case Output:
 		return "output"

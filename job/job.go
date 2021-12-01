@@ -67,7 +67,11 @@ func (j *Job) StartChild(executable string, args ...string) error {
 	log.Debugf("Starting: %s\n", j.cmd.Path)
 
 	go func() {
-		j.run(errCh)
+		err := j.run(errCh)
+		if err != nil {
+			j.updateStatus(Errored)
+			errCh <- err
+		}
 	}()
 
 	// Waits for the job to be started successfully
@@ -112,19 +116,21 @@ func (j *Job) Wait() {
 	<-j.done
 }
 
-func (j *Job) run(started chan error) {
+func (j *Job) run(started chan error) error {
 	log.Debugf("Running: %s\n", j.cmd.Path)
 
-	stdout, _ := j.cmd.StdoutPipe()
-	stderr, _ := j.cmd.StderrPipe()
-
-	err := j.cmd.Start()
-
+	stdout, err := j.cmd.StdoutPipe()
 	if err != nil {
-		j.updateStatus(Errored)
-		started <- err
+		return err
+	}
+	stderr, err := j.cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
 
-		return
+	err = j.cmd.Start()
+	if err != nil {
+		return err
 	}
 
 	started <- err
@@ -150,18 +156,20 @@ func (j *Job) run(started chan error) {
 	}
 
 	j.done <- true
+
+	return nil
 }
 
-func (j *Job) pipe(channel stream.Channel, pipe io.ReadCloser) {
+func (j *Job) pipe(st stream.StreamType, pipe io.ReadCloser) {
 	go func() {
 		for {
 			buf := make([]byte, BUFFER_SIZE)
 			n, err := pipe.Read(buf)
 
 			if n > 0 {
-				log.Debugf("[%s] %s", channel, buf[:n])
+				log.Debugf("[%s] %s", st, buf[:n])
 
-				err := j.write(channel, buf[:n])
+				err := j.write(st, buf[:n])
 				if err != nil {
 					// The stream is already has been closed, due to the updated status of the job (that's
 					// no more running). This means that the underlying execution has already finished, and
@@ -178,14 +186,14 @@ func (j *Job) pipe(channel stream.Channel, pipe io.ReadCloser) {
 	}()
 }
 
-func (j *Job) write(channel stream.Channel, text []byte) error {
+func (j *Job) write(st stream.StreamType, text []byte) error {
 	j.m.WLock("pipe")
 	defer j.m.WUnlock("pipe")
 
 	return j.output.Write(stream.Line{
-		Channel: channel,
-		Time:    time.Now(),
-		Text:    text,
+		Time: time.Now(),
+		Type: st,
+		Text: text,
 	})
 }
 

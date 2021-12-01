@@ -128,7 +128,7 @@ func TestStreamConcurrentReads(t *testing.T) {
 
 	// Starts before the writes
 	go func() {
-		for l := range s.Read2("l1") {
+		for l := range s.Read() {
 			res1 += string(l.Text)
 		}
 		wg.Done()
@@ -137,7 +137,7 @@ func TestStreamConcurrentReads(t *testing.T) {
 	// Starts after the first write, but before the second
 	go func() {
 		time.Sleep(50 * time.Millisecond)
-		for l := range s.Read2("l2") {
+		for l := range s.Read() {
 			res2 += string(l.Text)
 		}
 		wg.Done()

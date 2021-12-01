@@ -27,7 +27,7 @@ func printOutput(o *stream.Stream) {
 			break
 		}
 
-		if line.Channel == stream.Output {
+		if line.Type == stream.Output {
 			log.Infoln(line)
 		} else {
 			log.Warnln(line)
