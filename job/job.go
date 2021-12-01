@@ -92,8 +92,8 @@ func (j *Job) Stop() error {
 
 // Output returns the stream of captured stdout/stderr of the running process.
 func (j *Job) Output() *stream.Stream {
-	j.m.WLock("Output")
-	defer j.m.WUnlock("Output")
+	j.m.RLock("Output")
+	defer j.m.RUnlock("Output")
 
 	return j.output
 }
@@ -163,6 +163,9 @@ func (j *Job) pipe(channel stream.Channel, pipe io.ReadCloser) {
 
 				err := j.write(channel, buf[:n])
 				if err != nil {
+					// The stream is already has been closed, due to the updated status of the job (that's
+					// no more running). This means that the underlying execution has already finished, and
+					// its pipes are already closed.
 					break
 				}
 			}
@@ -184,7 +187,6 @@ func (j *Job) write(channel stream.Channel, text []byte) error {
 		Time:    time.Now(),
 		Text:    text,
 	})
-
 }
 
 func (j *Job) pid() int {
