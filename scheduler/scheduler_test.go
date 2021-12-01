@@ -1,8 +1,7 @@
 package scheduler
 
 import (
-	"github.com/beoboo/job-scheduler/library/assert"
-	"github.com/beoboo/job-scheduler/library/status"
+	"github.com/beoboo/job-scheduler/library/job"
 	"testing"
 	"time"
 )
@@ -16,21 +15,21 @@ func TestSchedulerStart(t *testing.T) {
 		t.Fatalf("Job not started")
 	}
 
-	assertStatus(t, s, id, status.Running())
+	assertStatus(t, s, id, job.Running, -1)
 
 	time.Sleep(200 * time.Millisecond)
 
-	assertStatus(t, s, id, status.Exited(0))
+	assertStatus(t, s, id, job.Exited, 0)
 }
 
 func TestSchedulerStop(t *testing.T) {
 	id, _ := s.Start("sleep", "10")
 
-	assertStatus(t, s, id, status.Running())
+	assertStatus(t, s, id, job.Running, -1)
 
 	_, _ = s.Stop(id)
 
-	assertStatus(t, s, id, status.Killed(-1))
+	assertStatus(t, s, id, job.Killed, -1)
 }
 
 func TestSchedulerOutput(t *testing.T) {
@@ -50,9 +49,14 @@ func TestSchedulerOutput(t *testing.T) {
 	assertOutput(t, s, id, expectedLines)
 }
 
-func assertStatus(t *testing.T, s *Scheduler, id string, expected *status.Status) {
+func assertStatus(t *testing.T, s *Scheduler, id string, expectedType job.StatusType, expectedExitCode int) {
 	st, _ := s.Status(id)
-	assert.AssertStatus(t, st, expected)
+	if st.Type != expectedType {
+		t.Fatalf("Job status should be \"%s\", got \"%s\"", expectedType, st.Type)
+	}
+	if st.ExitCode != expectedExitCode {
+		t.Fatalf("Job exit code should be \"%d\", got \"%d\"", expectedExitCode, st.ExitCode)
+	}
 }
 
 func assertOutput(t *testing.T, s *Scheduler, id string, expected []string) {
@@ -60,5 +64,13 @@ func assertOutput(t *testing.T, s *Scheduler, id string, expected []string) {
 	if err != nil {
 		t.Fatalf("Expected output for job %s\n", id)
 	}
-	assert.AssertOutput(t, o, expected)
+
+	lines := o.Read()
+	for _, e := range expected {
+		line := <-lines
+
+		if string(line.Text) != e {
+			t.Fatalf("Job output should contain \"%s\"%d, got \"%s\"%d", e, len(e), line.Text, len(line.Text))
+		}
+	}
 }

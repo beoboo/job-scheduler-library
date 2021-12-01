@@ -6,7 +6,6 @@ import (
 	"github.com/beoboo/job-scheduler/library/helpers"
 	"github.com/beoboo/job-scheduler/library/job"
 	"github.com/beoboo/job-scheduler/library/log"
-	"github.com/beoboo/job-scheduler/library/status"
 	"github.com/beoboo/job-scheduler/library/stream"
 	"sync"
 )
@@ -54,7 +53,7 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 }
 
 // Stop stops a running job.Job, or an error if the job.Job doesn't exist.
-func (s *Scheduler) Stop(id string) (*status.Status, error) {
+func (s *Scheduler) Stop(id string) (*job.Status, error) {
 	log.Debugf("Stopping job %s\n", id)
 
 	s.rlock("Stop")
@@ -74,7 +73,7 @@ func (s *Scheduler) Stop(id string) (*status.Status, error) {
 }
 
 // Status returns the status of a job.Job, or an error if the job.Job doesn't exist.
-func (s *Scheduler) Status(id string) (*status.Status, error) {
+func (s *Scheduler) Status(id string) (*job.Status, error) {
 	log.Debugf("Checking status for job \"%s\"\n", id)
 
 	s.rlock("Status")
