@@ -209,9 +209,6 @@ func (j *job) pipe(st stream.StreamType, pipe *bufio.Reader, wg *sync.WaitGroup)
 }
 
 func (j *job) write(st stream.StreamType, text []byte) error {
-	j.m.WLock("pipe")
-	defer j.m.WUnlock("pipe")
-
 	return j.outputSt.Write(stream.Line{
 		Time: time.Now(),
 		Type: st,
