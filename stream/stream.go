@@ -17,7 +17,7 @@ type Stream struct {
 func New() *Stream {
 	s := &Stream{
 		lines: Lines{},
-		m:     logsync.New("Stream"),
+		m:     logsync.NewMutex("Stream"),
 	}
 
 	s.cond = sync.NewCond(&s.m)

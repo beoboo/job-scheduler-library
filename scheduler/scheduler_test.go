@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"github.com/beoboo/job-scheduler/library/log"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +10,10 @@ import (
 const Runner = "../scripts/echo.sh"
 
 var s = New(Runner)
+
+func init() {
+	log.SetLevel(log.Trace)
+}
 
 func TestSchedulerStart(t *testing.T) {
 	id, _ := s.Start("sleep", "0.1")

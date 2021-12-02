@@ -10,11 +10,11 @@ func runExamples(s *scheduler.Scheduler) {
 	var wg sync.WaitGroup
 
 	// These examples will run concurrently, simulating several processes running at the same time.
-	//runExample(1, example1, sched, &wg)
+	runExample(1, example1, s, &wg)
 	runExample(2, example2NoExecutable, s, &wg)
 
 	for i := 0; i < 10; i++ {
-		//runExample(i, example1, sched, &wg)
+		runExample(i, example1, s, &wg)
 	}
 
 	wg.Wait()

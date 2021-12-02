@@ -1,17 +1,13 @@
 package scheduler
 
 import (
+	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
-	"sync"
 	"testing"
 	"time"
 )
 
-const (
-	JobId = "123"
-)
-
-var wg sync.WaitGroup
+var wg = logsync.NewWaitGroup("JobTest")
 
 func TestJobStart(t *testing.T) {
 	j := newJob(&wg)
