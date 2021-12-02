@@ -7,7 +7,6 @@ import (
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
-	"sync"
 )
 
 const (
@@ -18,7 +17,7 @@ type Scheduler struct {
 	runner string
 	jobs   map[string]*job
 	m      logsync.Mutex
-	wg     sync.WaitGroup
+	wg     logsync.WaitGroup
 }
 
 // New creates a scheduler.
@@ -26,7 +25,8 @@ func New(runner string) *Scheduler {
 	return &Scheduler{
 		runner: runner,
 		jobs:   make(map[string]*job),
-		m:      logsync.New("Scheduler"),
+		m:      logsync.NewMutex("Scheduler"),
+		wg:     logsync.NewWaitGroup("Scheduler"),
 	}
 }
 
@@ -35,7 +35,7 @@ func NewSelf() *Scheduler {
 	return &Scheduler{
 		runner: Self,
 		jobs:   make(map[string]*job),
-		m:      logsync.New("Scheduler"),
+		m:      logsync.NewMutex("Scheduler"),
 	}
 }
 
@@ -63,8 +63,6 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 
 		s.m.WLock("Start")
 		defer s.m.WUnlock("Start")
-
-		s.wg.Add(1)
 
 		s.jobs[j.id] = j
 

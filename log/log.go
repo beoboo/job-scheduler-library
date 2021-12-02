@@ -69,77 +69,66 @@ func init() {
 }
 
 func Traceln(args ...interface{}) {
-	//fmt.Println(args...)
 	if logger.level <= Trace {
 		logger.trace.Println(args...)
 	}
 }
 
 func Tracef(format string, args ...interface{}) {
-	//fmt.Printf(format, args...)
 	if logger.level <= Trace {
 		logger.trace.Printf(format, args...)
 	}
 }
 
 func Debugln(args ...interface{}) {
-	//fmt.Println(args...)
 	if logger.level <= Debug {
 		logger.debug.Println(args...)
 	}
 }
 
 func Debugf(format string, args ...interface{}) {
-	//fmt.Printf(format, args...)
 	if logger.level <= Debug {
 		logger.debug.Printf(format, args...)
 	}
 }
 
 func Infoln(args ...interface{}) {
-	//fmt.Println(args...)
 	if logger.level <= Info {
 		logger.info.Println(args...)
 	}
 }
 
 func Infof(format string, args ...interface{}) {
-	//fmt.Printf(format, args...)
 	if logger.level <= Info {
 		logger.info.Printf(format, args...)
 	}
 }
 
 func Warnln(args ...interface{}) {
-	//fmt.Println(args...)
 	if logger.level <= Warn {
 		logger.warn.Println(args...)
 	}
 }
 
 func Warnf(format string, args ...interface{}) {
-	//fmt.Printf(format, args...)
 	if logger.level <= Warn {
 		logger.warn.Printf(format, args...)
 	}
 }
 
 func Errorln(args ...interface{}) {
-	//fmt.Println(args...)
 	if logger.level <= Error {
 		logger.error.Println(args...)
 	}
 }
 
 func Errorf(format string, args ...interface{}) {
-	//fmt.Printf(format, args...)
 	if logger.level <= Error {
 		logger.error.Printf(format, args...)
 	}
 }
 
 func Fatalln(args ...interface{}) {
-	//fmt.Println(args...)
 	if logger.level <= Fatal {
 		logger.fatal.Println(args...)
 		os.Exit(1)
@@ -147,7 +136,6 @@ func Fatalln(args ...interface{}) {
 }
 
 func Fatalf(format string, args ...interface{}) {
-	//fmt.Printf(format, args...)
 	if logger.level <= Fatal {
 		logger.fatal.Printf(format, args...)
 		os.Exit(1)

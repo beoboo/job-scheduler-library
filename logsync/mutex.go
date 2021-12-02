@@ -5,13 +5,13 @@ import (
 	"sync"
 )
 
-// Mutex These wraps sync.RWMutexlock and unlock for debugging purposes
+// Mutex wraps sync.RWMutex for debugging purposes
 type Mutex struct {
 	parent string
 	m      sync.RWMutex
 }
 
-func New(parent string) Mutex {
+func NewMutex(parent string) Mutex {
 	return Mutex{
 		parent: parent,
 	}

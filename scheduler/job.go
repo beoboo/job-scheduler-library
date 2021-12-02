@@ -26,19 +26,17 @@ type job struct {
 	outputSt *stream.Stream
 	sts      *JobStatus
 	m        logsync.Mutex
-	wg       *sync.WaitGroup
+	wg       *logsync.WaitGroup
 }
 
 // newJob creates a new job
-func newJob(wg *sync.WaitGroup) *job {
-	wg.Add(1)
-
+func newJob(wg *logsync.WaitGroup) *job {
 	id := generateRandomId()
 	p := &job{
 		id:       id,
 		outputSt: stream.New(),
 		sts:      &JobStatus{Type: Idle, ExitCode: -1},
-		m:        logsync.New(fmt.Sprintf("job %s", id)),
+		m:        logsync.NewMutex(fmt.Sprintf("job %s", id)),
 		wg:       wg,
 	}
 
@@ -60,8 +58,10 @@ func (j *job) startIsolated(executable string, args ...string) error {
 
 	errCh := make(chan error, 1)
 
+	j.wg.Add(j.id, 1)
+
 	go func() {
-		defer j.wg.Done()
+		defer j.wg.Done(j.id)
 
 		err := j.run(errCh)
 		if err != nil {

@@ -34,6 +34,7 @@ func main() {
 			log.Fatalf("Usage: run [--cpu N] [--io N] [--mem N] EXECUTABLE [ARGS]\n")
 		}
 
+		// TODO: handle cmd line options
 		//err := flag.CommandLine.Parse(args)
 		//if err != nil {
 		//	log.Fatalf("Cannot parse arguments: %s\n", err)
@@ -51,7 +52,8 @@ func main() {
 		if len(args) < 2 {
 			log.Fatalf("Usage: child [--cpu N] [--io N] [--mem N] JOB_ID EXECUTABLE [ARGS]\n")
 		}
-		//
+
+		// TODO: handle cmd line options
 		//err := flag.CommandLine.Parse(args)
 		//if err != nil {
 		//	log.Fatalf("Cannot parse arguments: %s\n", err)
