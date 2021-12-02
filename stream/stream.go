@@ -11,7 +11,7 @@ type Stream struct {
 	pos       int
 	closed    bool
 	m         logsync.Mutex
-	cond      sync.Cond
+	cond      *sync.Cond
 	listeners int
 }
 
