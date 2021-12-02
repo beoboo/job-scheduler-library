@@ -1,11 +1,14 @@
 package scheduler
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
 
-var s = New("dummy")
+const Runner = "../scripts/echo.sh"
+
+var s = New(Runner)
 
 func TestSchedulerStart(t *testing.T) {
 	id, _ := s.Start("sleep", "0.1")
@@ -33,11 +36,10 @@ func TestSchedulerStop(t *testing.T) {
 
 func TestSchedulerOutput(t *testing.T) {
 	expected := []string{
-		"Running for 1 times, sleeping for 0.1\n",
-		"#1\n",
+		Runner,
 	}
 
-	id, _ := s.Start("../test.sh", "1", "0.1")
+	id, _ := s.Start("../scripts/test.sh", "1", "0.1")
 
 	time.Sleep(150 * time.Millisecond)
 
@@ -55,5 +57,14 @@ func assertSchedulerStatus(t *testing.T, s *Scheduler, id string, expectedStatus
 
 func assertSchedulerOutput(t *testing.T, s *Scheduler, id string, expected []string) {
 	o, _ := s.Output(id)
-	assertOutput(t, o, expected)
+
+	lines := o.Read()
+
+	for _, e := range expected {
+		line := <-lines
+
+		if !strings.Contains(string(line.Text), e) {
+			t.Fatalf("Job output should contain \"%s\", got \"%s\"", e, line.Text)
+		}
+	}
 }

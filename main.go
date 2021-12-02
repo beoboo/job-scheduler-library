@@ -1,7 +1,7 @@
 package main
 
 import (
-	"flag"
+	"github.com/beoboo/job-scheduler/library/helpers"
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/scheduler"
 	"github.com/beoboo/job-scheduler/library/stream"
@@ -22,46 +22,59 @@ func main() {
 	command := os.Args[1]
 	args := os.Args[2:]
 
+	//s := scheduler.New("scripts/echo.sh")
+	s := scheduler.NewSelf()
+
 	switch command {
 	case "examples":
-		// this will run some concurrent examples
+		runExamples(s)
 	case "run":
-		run(args...)
+		log.SetLevel(log.Debug)
+		if len(args) < 1 {
+			log.Fatalf("Usage: run [--cpu N] [--io N] [--mem N] EXECUTABLE [ARGS]\n")
+		}
+
+		//err := flag.CommandLine.Parse(args)
+		//if err != nil {
+		//	log.Fatalf("Cannot parse arguments: %s\n", err)
+		//}
+		//remaining := flag.Args()
+		remaining := args
+
+		executable := remaining[0]
+		params := remaining[1:]
+		runParent(s, executable, params...)
 	case "child":
-		// this will run a single process (without any job in the middle)
+		log.SetMode(log.Dimmed)
+		log.SetLevel(log.Info)
+
+		if len(args) < 2 {
+			log.Fatalf("Usage: child [--cpu N] [--io N] [--mem N] JOB_ID EXECUTABLE [ARGS]\n")
+		}
+		//
+		//err := flag.CommandLine.Parse(args)
+		//if err != nil {
+		//	log.Fatalf("Cannot parse arguments: %s\n", err)
+		//}
+		//remaining := flag.Args()
+		remaining := args
+
+		runChild(s, os.Args[0], remaining...)
 	default:
 		log.Fatalf(usage)
 	}
+
+	log.Reset()
 }
 
 func isRoot() bool {
 	return os.Geteuid() == 0
 }
 
-// Runs a job through the scheduler
-func run(args ...string) {
-	if len(args) < 1 {
-		log.Fatalf("Usage: schedule [--cpu N] [--io N] [--mem N] EXECUTABLE [ARGS]\n")
-	}
-
-	err := flag.CommandLine.Parse(args)
-	if err != nil {
-		log.Fatalf("Cannot parse arguments: %s\n", err)
-	}
-	remaining := flag.Args()
-
-	executable := remaining[0]
-	params := remaining[1:]
-
-	runScheduler(executable, params...)
-}
-
-func runScheduler(executable string, params ...string) {
-	// TODO: map "dummy" to the runner (i.e. /proc/self/exe)
-	s := scheduler.New("dummy")
-
+func runParent(s *scheduler.Scheduler, executable string, params ...string) {
+	log.Infof("Starting scheduler with \"%s\"\n", helpers.FormatCmdLine(executable, params...))
 	id := do(s.Start(executable, params...))
-	log.Infof("job \"%s\" started\n", id)
+	log.Infof("Job \"%s\" started\n", id)
 
 	printStatus(s.Status(id))
 
@@ -74,6 +87,16 @@ func runScheduler(executable string, params ...string) {
 	printStatus(s.Status(id))
 }
 
+func runChild(s *scheduler.Scheduler, executable string, params ...string) {
+	log.Infof("Starting scheduler with \"%s\"\n", helpers.FormatCmdLine(executable, params...))
+	_, err := s.Start(executable, params...)
+	if err != nil {
+		return
+	}
+
+	s.Wait()
+}
+
 func do(val string, err error) string {
 	check(err)
 
@@ -82,7 +105,7 @@ func do(val string, err error) string {
 
 func check(err error) {
 	if err != nil {
-		log.Fatalf("Unexpected: %s\n", err)
+		log.Fatalf("Unexpected error: %v\n", err)
 	}
 }
 
@@ -96,9 +119,9 @@ func printOutput(o *stream.Stream) {
 		}
 
 		if line.Type == stream.Output {
-			log.Infof("%s", line)
+			log.Infof("%s", line.Text)
 		} else {
-			log.Warnf("%s", line)
+			log.Warnf("%s", line.Text)
 		}
 	}
 }
@@ -107,5 +130,5 @@ func printStatus(status *scheduler.JobStatus, err error) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Infof("job status: %s\n", status)
+	log.Debugf("Job status: %s\n", status)
 }

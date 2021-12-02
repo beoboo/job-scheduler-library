@@ -7,12 +7,18 @@ import (
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
+	"sync"
 )
 
 type Scheduler struct {
 	runner string
 	jobs   map[string]*job
 	m      logsync.Mutex
+	wg     sync.WaitGroup
+}
+
+func self() string {
+	return "/proc/self/exe"
 }
 
 // New creates a scheduler.
@@ -24,31 +30,58 @@ func New(runner string) *Scheduler {
 	}
 }
 
+// NewSelf creates a scheduler for "/proc/self/exe".
+func NewSelf() *Scheduler {
+	return &Scheduler{
+		runner: self(),
+		jobs:   make(map[string]*job),
+		m:      logsync.New("Scheduler"),
+	}
+}
+
 // Start runs a new job.
 func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	log.Debugf("Starting executable: \"%s\"\n", helpers.FormatCmdLine(executable, args...))
 	j := newJob()
 
-	// If the executable is the same as the predefined runner, the process has to be isolated
-	if s.runner == executable {
-		err := j.startIsolated(executable, args...)
+	// If the executable is not the same as the predefined runner, the process has to be isolated
+	if s.runner != executable {
+		log.Debugln("Starting in isolated mode")
+		args = append([]string{
+			"child",    // Main subcommand
+			j.id,       // The job ID
+			executable, // The original executable
+		}, args...)
+
+		err := j.startIsolated(s.runner, args...)
 		if err != nil {
 			return "", err
 		}
-	} else {
-		err := j.start(executable, args...)
-		if err != nil {
-			return "", err
-		}
+
+		log.Debugf("Job ID: %s\n", j.id)
+		log.Debugf("Status: %s\n", j.status())
+
+		s.m.WLock("Start")
+		defer s.m.WUnlock("Start")
+
+		s.wg.Add(1)
+
+		s.jobs[j.id] = j
+
+		return j.id, nil
 	}
 
-	log.Debugf("job ID: %s\n", j.id)
-	log.Debugf("Status: %s\n", j.status())
+	jobId := args[0]
+	executable = args[1]
+	args = args[2:]
 
-	s.m.WLock("Start")
-	defer s.m.WUnlock("Start")
+	log.Debugln("Starting in standard mode")
 
-	s.jobs[j.id] = j
+	err := j.startChild(jobId, executable, args...)
+	if err != nil {
+		return "", err
+	}
+
 	return j.id, nil
 }
 
@@ -90,7 +123,7 @@ func (s *Scheduler) Status(id string) (*JobStatus, error) {
 
 // Output returns the stream of the stdout/stderr of a job, or an error if the job.job doesn't exist.
 func (s *Scheduler) Output(id string) (*stream.Stream, error) {
-	log.Debugf("Streaming output for job \"%s\"\n", id)
+	//log.Debugf("Streaming output for job \"%s\"\n", id)
 
 	s.m.RLock("Output")
 	defer s.m.RUnlock("Output")
@@ -109,4 +142,9 @@ func (s *Scheduler) Size() int {
 	defer s.m.RUnlock("Size")
 
 	return len(s.jobs)
+}
+
+// Wait blocks until all jobs are finished
+func (s *Scheduler) Wait() {
+	s.wg.Wait()
 }
