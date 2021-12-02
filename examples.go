@@ -18,6 +18,7 @@ func runExamples(s *scheduler.Scheduler) {
 	}
 
 	wg.Wait()
+	s.Wait()
 }
 
 func runExample(id int, example func(s *scheduler.Scheduler), s *scheduler.Scheduler, wg *sync.WaitGroup) {
@@ -32,7 +33,7 @@ func runExample(id int, example func(s *scheduler.Scheduler), s *scheduler.Sched
 }
 
 func example1(s *scheduler.Scheduler) {
-	id := do(s.Start("scripts/test.sh", "5", "1"))
+	id := do(s.Start("bin/test.sh", "5", "1"))
 	log.Infof("Job \"%s\" started\n", id)
 
 	printStatus(s.Status(id))

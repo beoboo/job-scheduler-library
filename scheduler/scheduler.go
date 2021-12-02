@@ -45,6 +45,12 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	j := newJob(&s.wg)
 
 	// If the executable is not the same as the predefined runner, the process has to be isolated
+	/**
+		TODO: this is super simplified. We are checking that the name configured in the Scheduler
+	 	is the same of the executable we're running (through the parent/child execution).
+	    It works well with "/proc/self/exe", less for a "daemon" or "child" binary that needs to be
+	    under $PATH.
+	*/
 	if s.runner != executable {
 		log.Debugln("Starting in isolated mode")
 		args = append([]string{

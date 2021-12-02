@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -51,8 +52,17 @@ func generateRandomId() string {
 func (j *job) startIsolated(executable string, args ...string) error {
 	log.Debugf("Starting isolated: %s\n", helpers.FormatCmdLine(executable, args...))
 	cmd := exec.Command(executable, args...)
-	// TODO: here we'll set clone flags
-	// TODO: here we'll mounts and cgroups for the child process
+
+	// TODO: for simplicity, we're not handling other namespaces (i.e. UTS) or UID/GID mappings
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWUTS |
+			syscall.CLONE_NEWPID |
+			syscall.CLONE_NEWNET,
+	}
+	// TODO: mount folders
+	// TODO: set cgroups
+	// TODO: chroot
+	// TODO: cd /
 
 	j.cmd = cmd
 
@@ -61,7 +71,7 @@ func (j *job) startIsolated(executable string, args ...string) error {
 	j.wg.Add(j.id, 1)
 
 	go func() {
-		defer j.wg.Done(j.id)
+		defer j.cleanup()
 
 		err := j.run(errCh)
 		if err != nil {
@@ -74,6 +84,13 @@ func (j *job) startIsolated(executable string, args ...string) error {
 	err := <-errCh
 
 	return err
+}
+
+func (j *job) cleanup() {
+	j.wg.Done(j.id)
+
+	// TODO: unmount folders
+	// TODO: set cgroups
 }
 
 // startChild starts the execution of a child process, capturing its output
@@ -94,8 +111,6 @@ func (j *job) startChild(jobId, executable string, args ...string) error {
 		log.Fatalln(err)
 		return err
 	}
-
-	log.Errorln(cmd.ProcessState.ExitCode())
 
 	return nil
 }

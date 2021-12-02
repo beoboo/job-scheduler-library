@@ -20,6 +20,16 @@ mount | grep cgroup
 
 Another possible setup is to run Virtualbox with the same Ubuntu 20.04 running on it.
 
+## Daemon
+
+The project contains an [example](cmd/daemon/main.go) of an executable that can answer to "child" commands.
+
+Build it with:
+
+```
+go build -o bin/ ./cmd/daemon
+```
+
 ## Testing
 
 Run the tests with
