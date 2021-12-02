@@ -77,13 +77,9 @@ func (j *job) startIsolated(executable string, args ...string) error {
 }
 
 // startChild starts the execution of a child process, capturing its output
-func (j *job) startChild(jobId, executable string, args ...string) error {
+func (j *job) startChild(jobId, executable string, args ...string) (int, error) {
 	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
 
-	_, err := exec.LookPath(executable)
-	if err != nil {
-		return err
-	}
 	cmd := exec.Command(executable, args...)
 
 	cmd.Stdin = os.Stdin
@@ -91,13 +87,10 @@ func (j *job) startChild(jobId, executable string, args ...string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		log.Fatalln(err)
-		return err
+		return cmd.ProcessState.ExitCode(), err
 	}
 
-	log.Errorln(cmd.ProcessState.ExitCode())
-
-	return nil
+	return cmd.ProcessState.ExitCode(), nil
 }
 
 // stop stops a running process

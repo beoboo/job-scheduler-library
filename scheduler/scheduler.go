@@ -7,6 +7,7 @@ import (
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
+	"os"
 )
 
 const (
@@ -75,12 +76,16 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 
 	log.Debugln("Starting in standard mode")
 
-	err := j.startChild(jobId, executable, args...)
+	ec, err := j.startChild(jobId, executable, args...)
 	if err != nil {
+		log.Errorf("%s", err)
+		os.Exit(ec)
 		return "", err
 	}
 
-	return j.id, nil
+	os.Exit(ec)
+
+	return "", nil
 }
 
 // Stop stops a running job, or an error if the job.job doesn't exist.
