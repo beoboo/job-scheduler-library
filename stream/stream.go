@@ -11,7 +11,7 @@ type Stream struct {
 	pos       int
 	closed    bool
 	m         logsync.Mutex
-	cond      sync.Cond
+	cond      *sync.Cond
 	listeners int
 }
 
@@ -22,7 +22,7 @@ func New() *Stream {
 		m:     logsync.New("Stream"),
 	}
 
-	s.cond.L = &s.m
+	s.cond = sync.NewCond(&s.m)
 	return s
 }
 
