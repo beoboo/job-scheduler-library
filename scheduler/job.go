@@ -94,15 +94,9 @@ func (j *job) cleanup() {
 }
 
 // startChild starts the execution of a child process, capturing its output
-func (j *job) startChild(jobId, executable string, args ...string) error {
+func (j *job) startChild(jobId, executable string, args ...string) (int, error) {
 	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
-	log.Debugf("here")
 
-	_, err := exec.LookPath(executable)
-	if err != nil {
-		//log.Debugf("%v", err)
-		return err
-	}
 	cmd := exec.Command(executable, args...)
 
 	cmd.Stdin = os.Stdin
@@ -110,11 +104,10 @@ func (j *job) startChild(jobId, executable string, args ...string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		log.Fatalln(err)
-		return err
+		return cmd.ProcessState.ExitCode(), err
 	}
 
-	return nil
+	return cmd.ProcessState.ExitCode(), nil
 }
 
 // stop stops a running process

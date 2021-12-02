@@ -6,7 +6,6 @@ import (
 	"github.com/beoboo/job-scheduler/library/scheduler"
 	"github.com/beoboo/job-scheduler/library/stream"
 	"os"
-	"syscall"
 )
 
 func main() {
@@ -96,8 +95,8 @@ func runChild(s *scheduler.Scheduler, executable string, params ...string) {
 	log.Infof("Starting scheduler with \"%s\"\n", helpers.FormatCmdLine(executable, params...))
 	_, err := s.Start(executable, params...)
 	if err != nil {
-		log.Errorln(err)
-		syscall.Exit(127)
+		log.Fatalf("%v", err)
+		return
 	}
 
 	s.Wait()
