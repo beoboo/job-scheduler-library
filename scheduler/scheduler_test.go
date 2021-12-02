@@ -34,6 +34,16 @@ func TestSchedulerStop(t *testing.T) {
 	assertSchedulerStatus(t, s, id, Killed, -1)
 }
 
+func TestSchedulerWait(t *testing.T) {
+	id, _ := s.Start("sleep", ".1")
+
+	assertSchedulerStatus(t, s, id, Running, -1)
+
+	s.Wait()
+
+	assertSchedulerStatus(t, s, id, Exited, 0)
+}
+
 func TestSchedulerOutput(t *testing.T) {
 	expected := []string{
 		Runner,

@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"github.com/beoboo/job-scheduler/library/stream"
+	"sync"
 	"testing"
 	"time"
 )
@@ -10,8 +11,10 @@ const (
 	JobId = "123"
 )
 
+var wg sync.WaitGroup
+
 func TestJobStart(t *testing.T) {
-	j := newJob()
+	j := newJob(&wg)
 
 	assertJobStatus(t, j, Idle, -1)
 
@@ -23,13 +26,13 @@ func TestJobStart(t *testing.T) {
 		t.Fatalf("Job PID should not be empty")
 	}
 
-	j.wait()
+	wg.Wait()
 
 	assertJobStatus(t, j, Exited, 0)
 }
 
 func TestUnknownExecutable(t *testing.T) {
-	j := newJob()
+	j := newJob(&wg)
 
 	_ = j.startIsolated("./unknown-executable")
 
@@ -37,7 +40,7 @@ func TestUnknownExecutable(t *testing.T) {
 }
 
 func TestJobStop(t *testing.T) {
-	j := newJob()
+	j := newJob(&wg)
 
 	assertJobStatus(t, j, Idle, -1)
 
@@ -54,7 +57,7 @@ func TestJobStop(t *testing.T) {
 }
 
 func TestJobOutput(t *testing.T) {
-	j := newJob()
+	j := newJob(&wg)
 
 	assertJobStatus(t, j, Idle, -1)
 
@@ -71,7 +74,7 @@ func TestJobOutput(t *testing.T) {
 
 	assertJobOutput(t, j, expected)
 
-	j.wait()
+	wg.Wait()
 
 	assertJobStatus(t, j, Exited, 0)
 
@@ -79,7 +82,7 @@ func TestJobOutput(t *testing.T) {
 }
 
 func TestJobMultipleReaders(t *testing.T) {
-	j := newJob()
+	j := newJob(&wg)
 
 	expected := []string{
 		"Running for 2 times, sleeping for 0.1\n",
@@ -98,7 +101,7 @@ func TestJobMultipleReaders(t *testing.T) {
 
 	o2 := j.output()
 
-	j.wait()
+	wg.Wait()
 
 	assertOutput(t, o1, expected)
 	assertOutput(t, o2, expected)
