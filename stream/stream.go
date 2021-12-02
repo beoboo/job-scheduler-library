@@ -18,7 +18,6 @@ func New() *Stream {
 	s := &Stream{
 		lines: Lines{},
 		m:     logsync.New("Stream"),
-		cond:  sync.NewCond(&s.m),
 	}
 
 	s.cond = sync.NewCond(&s.m)
