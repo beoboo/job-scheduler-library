@@ -96,6 +96,7 @@ func runChild(s *scheduler.Scheduler, executable string, params ...string) {
 	log.Infof("Starting scheduler with \"%s\"\n", helpers.FormatCmdLine(executable, params...))
 	_, err := s.Start(executable, params...)
 	if err != nil {
+		log.Fatalf("%v", err)
 		return
 	}
 
