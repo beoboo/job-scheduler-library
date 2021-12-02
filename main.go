@@ -72,6 +72,9 @@ func runScheduler(executable string, params ...string) {
 
 	printOutput(o)
 	printStatus(s.Status(id))
+
+	s.Wait()
+	log.Infoln("Schedule completed")
 }
 
 func do(val string, err error) string {

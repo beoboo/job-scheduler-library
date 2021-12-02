@@ -7,12 +7,14 @@ import (
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
+	"sync"
 )
 
 type Scheduler struct {
 	runner string
 	jobs   map[string]*job
 	m      logsync.Mutex
+	wg     sync.WaitGroup
 }
 
 // New creates a scheduler.
@@ -27,7 +29,7 @@ func New(runner string) *Scheduler {
 // Start runs a new job.
 func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	log.Debugf("Starting executable: \"%s\"\n", helpers.FormatCmdLine(executable, args...))
-	j := newJob()
+	j := newJob(&s.wg)
 
 	// If the executable is the same as the predefined runner, the process has to be isolated
 	if s.runner == executable {
@@ -109,4 +111,8 @@ func (s *Scheduler) Size() int {
 	defer s.m.RUnlock("Size")
 
 	return len(s.jobs)
+}
+
+func (s *Scheduler) Wait() {
+	s.wg.Wait()
 }
