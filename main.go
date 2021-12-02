@@ -6,6 +6,7 @@ import (
 	"github.com/beoboo/job-scheduler/library/scheduler"
 	"github.com/beoboo/job-scheduler/library/stream"
 	"os"
+	"syscall"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	args := os.Args[2:]
 
 	// TODO: this could be set through an option
-	//log.SetLevel(log.Debug)
+	log.SetLevel(log.Debug)
 
 	//s := scheduler.New("scripts/echo.sh")
 	s := scheduler.NewSelf()
@@ -48,9 +49,6 @@ func main() {
 		params := remaining[1:]
 		runParent(s, executable, params...)
 	case "child":
-		log.SetMode(log.Dimmed)
-		log.SetLevel(log.Info)
-
 		if len(args) < 2 {
 			log.Fatalf("Usage: child [--cpu N] [--io N] [--mem N] JOB_ID EXECUTABLE [ARGS]\n")
 		}
@@ -98,7 +96,8 @@ func runChild(s *scheduler.Scheduler, executable string, params ...string) {
 	log.Infof("Starting scheduler with \"%s\"\n", helpers.FormatCmdLine(executable, params...))
 	_, err := s.Start(executable, params...)
 	if err != nil {
-		return
+		log.Errorln(err)
+		syscall.Exit(127)
 	}
 
 	s.Wait()
