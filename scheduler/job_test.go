@@ -103,6 +103,18 @@ func TestJobMultipleReaders(t *testing.T) {
 	assertOutput(t, o2, expected)
 }
 
+func TestUpdateStatus(t *testing.T) {
+	j := newJob(&wg)
+	j.updateStatus(Running)
+	assertJobStatus(t, j, Running, -1)
+
+	j.updateStatus(Killed)
+	assertJobStatus(t, j, Killed, -1)
+
+	j.updateStatus(Errored)
+	assertJobStatus(t, j, Killed, -1)
+}
+
 func assertJobStatus(t *testing.T, j *job, expectedType StatusType, expectedCode int) {
 	assertStatus(t, j.status(), expectedType, expectedCode)
 }

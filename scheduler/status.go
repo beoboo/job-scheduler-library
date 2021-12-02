@@ -34,7 +34,7 @@ func (st StatusType) String() string {
 
 func (s *JobStatus) String() string {
 	switch s.Type {
-	case Idle | Running:
+	case Idle, Running:
 		return s.Type.String()
 	default:
 		return fmt.Sprintf("%s (%d)", s.Type, s.ExitCode)

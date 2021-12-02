@@ -208,7 +208,7 @@ func (j *job) updateStatus(st StatusType) {
 	defer j.m.WUnlock("updateStatus")
 
 	switch j.sts.Type {
-	case Exited | Errored | Killed:
+	case Exited, Errored, Killed:
 		// Do not update the status, the previous one is the one we want to keep
 	case Running:
 		j.sts.Type = st
