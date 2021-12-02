@@ -3,10 +3,12 @@ package scheduler
 import (
 	"bufio"
 	"fmt"
+	"github.com/beoboo/job-scheduler/library/helpers"
 	"github.com/beoboo/job-scheduler/library/log"
 	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
 	"github.com/google/uuid"
+	"os"
 	"os/exec"
 	"sync"
 	"time"
@@ -47,12 +49,7 @@ func generateRandomId() string {
 
 // startIsolated starts the execution of a process through a parent/child mechanism
 func (j *job) startIsolated(executable string, args ...string) error {
-	// TODO: This will run the process through /proc/self/exe (or similar). For now just wraps StartChild
-	return j.start(executable, args...)
-}
-
-// start starts the execution of a child process, capturing its output
-func (j *job) start(executable string, args ...string) error {
+	log.Debugf("Starting isolated: %s\n", helpers.FormatCmdLine(executable, args...))
 	cmd := exec.Command(executable, args...)
 	// TODO: here we'll set clone flags
 	// TODO: here we'll mounts and cgroups for the child process
@@ -60,7 +57,6 @@ func (j *job) start(executable string, args ...string) error {
 	j.cmd = cmd
 
 	errCh := make(chan error, 1)
-	log.Debugf("Starting: %s\n", j.cmd.Path)
 
 	go func() {
 		err := j.run(errCh)
@@ -74,6 +70,30 @@ func (j *job) start(executable string, args ...string) error {
 	err := <-errCh
 
 	return err
+}
+
+// startChild starts the execution of a child process, capturing its output
+func (j *job) startChild(jobId, executable string, args ...string) error {
+	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
+
+	_, err := exec.LookPath(executable)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(executable, args...)
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		log.Fatalln(err)
+		return err
+	}
+
+	log.Errorln(cmd.ProcessState.ExitCode())
+
+	return nil
 }
 
 // stop stops a running process
@@ -113,8 +133,6 @@ func (j *job) wait() {
 }
 
 func (j *job) run(started chan error) error {
-	log.Debugf("Running: %s\n", j.cmd.Path)
-
 	stdout, err := j.cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -206,6 +224,7 @@ func (j *job) pid() int {
 }
 
 func (j *job) updateStatus(st StatusType) {
+	log.Tracef("Updating status for job [%s] to %s\n", j.id, st)
 	j.m.WLock("updateStatus")
 	defer j.m.WUnlock("updateStatus")
 
