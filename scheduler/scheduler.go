@@ -10,15 +10,15 @@ import (
 	"sync"
 )
 
+const (
+	Self = "/proc/self/exe"
+)
+
 type Scheduler struct {
 	runner string
 	jobs   map[string]*job
 	m      logsync.Mutex
 	wg     sync.WaitGroup
-}
-
-func self() string {
-	return "/proc/self/exe"
 }
 
 // New creates a scheduler.
@@ -33,7 +33,7 @@ func New(runner string) *Scheduler {
 // NewSelf creates a scheduler for "/proc/self/exe".
 func NewSelf() *Scheduler {
 	return &Scheduler{
-		runner: self(),
+		runner: Self,
 		jobs:   make(map[string]*job),
 		m:      logsync.New("Scheduler"),
 	}
@@ -42,7 +42,7 @@ func NewSelf() *Scheduler {
 // Start runs a new job.
 func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	log.Debugf("Starting executable: \"%s\"\n", helpers.FormatCmdLine(executable, args...))
-	j := newJob()
+	j := newJob(&s.wg)
 
 	// If the executable is not the same as the predefined runner, the process has to be isolated
 	if s.runner != executable {

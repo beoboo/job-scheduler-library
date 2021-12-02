@@ -24,20 +24,22 @@ type job struct {
 	id       string
 	cmd      *exec.Cmd
 	outputSt *stream.Stream
-	done     chan bool
 	sts      *JobStatus
 	m        logsync.Mutex
+	wg       *sync.WaitGroup
 }
 
 // newJob creates a new job
-func newJob() *job {
+func newJob(wg *sync.WaitGroup) *job {
+	wg.Add(1)
+
 	id := generateRandomId()
 	p := &job{
 		id:       id,
-		done:     make(chan bool),
 		outputSt: stream.New(),
 		sts:      &JobStatus{Type: Idle, ExitCode: -1},
 		m:        logsync.New(fmt.Sprintf("job %s", id)),
+		wg:       wg,
 	}
 
 	return p
@@ -59,6 +61,8 @@ func (j *job) startIsolated(executable string, args ...string) error {
 	errCh := make(chan error, 1)
 
 	go func() {
+		defer j.wg.Done()
+
 		err := j.run(errCh)
 		if err != nil {
 			j.updateStatus(Errored)
@@ -99,6 +103,10 @@ func (j *job) startChild(jobId, executable string, args ...string) error {
 // stop stops a running process
 func (j *job) stop() error {
 	j.m.WLock("stop")
+	if j.cmd == nil {
+		j.m.WUnlock("stop")
+		return fmt.Errorf("job not started")
+	}
 	err := j.cmd.Process.Kill()
 	j.m.WUnlock("stop")
 
@@ -125,11 +133,6 @@ func (j *job) status() *JobStatus {
 
 	// JobStatus needs to be cloned or a race condition might happen (since it's a reference)
 	return j.sts.clone()
-}
-
-// wait blocks until the process is completed
-func (j *job) wait() {
-	<-j.done
 }
 
 func (j *job) run(started chan error) error {
@@ -176,8 +179,6 @@ func (j *job) run(started chan error) error {
 		j.updateStatus(Exited)
 	}
 
-	j.done <- true
-
 	return nil
 }
 
@@ -189,12 +190,12 @@ func (j *job) pipe(st stream.StreamType, pipe *bufio.Reader, wg *sync.WaitGroup)
 		if n > 0 {
 			log.Debugf("[%s] %s", st, buf[:n])
 
-			err := j.write(st, buf[:n])
-			if err != nil {
+			wErr := j.write(st, buf[:n])
+			if wErr != nil {
 				// The stream is already has been closed, due to the updated status of the job (that's
 				// no more running). This means that the underlying execution has already finished, and
 				// its pipes are already closed.
-				log.Debugf("Write error: %s\n", err)
+				log.Debugf("Write error: %s\n", wErr)
 				break
 			}
 		}
@@ -226,6 +227,8 @@ func (j *job) updateStatus(st StatusType) {
 	defer j.m.WUnlock("updateStatus")
 
 	switch j.sts.Type {
+	case Exited | Errored | Killed:
+		// Do not update the status, the previous one is the one we want to keep
 	case Running:
 		j.sts.Type = st
 		j.outputSt.Close()

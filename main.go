@@ -85,6 +85,9 @@ func runParent(s *scheduler.Scheduler, executable string, params ...string) {
 
 	printOutput(o)
 	printStatus(s.Status(id))
+
+	s.Wait()
+	log.Infoln("Schedule completed")
 }
 
 func runChild(s *scheduler.Scheduler, executable string, params ...string) {

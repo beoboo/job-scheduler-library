@@ -7,12 +7,10 @@ import (
 )
 
 type Stream struct {
-	lines     Lines
-	pos       int
-	closed    bool
-	m         logsync.Mutex
-	cond      *sync.Cond
-	listeners int
+	lines  Lines
+	closed bool
+	m      logsync.Mutex
+	cond   *sync.Cond
 }
 
 // New creates a new Stream.
@@ -89,9 +87,9 @@ func (s *Stream) Close() {
 	if s.closed {
 		return
 	}
-	s.cond.Broadcast()
 
 	s.closed = true
+	s.cond.Broadcast()
 }
 
 func (s *Stream) hasData(pos int) bool {
