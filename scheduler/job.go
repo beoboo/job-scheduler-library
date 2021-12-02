@@ -172,12 +172,12 @@ func (j *job) pipe(st stream.StreamType, pipe *bufio.Reader, wg *sync.WaitGroup)
 		if n > 0 {
 			log.Debugf("[%s] %s", st, buf[:n])
 
-			err := j.write(st, buf[:n])
-			if err != nil {
+			wErr := j.write(st, buf[:n])
+			if wErr != nil {
 				// The stream is already has been closed, due to the updated status of the job (that's
 				// no more running). This means that the underlying execution has already finished, and
 				// its pipes are already closed.
-				log.Debugf("Write error: %s\n", err)
+				log.Debugf("Write error: %s\n", wErr)
 				break
 			}
 		}
