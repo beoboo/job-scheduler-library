@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-const Runner = "../scripts/echo.sh"
-
-var s = New(Runner)
+const Runner = "../bin/echo.sh"
 
 func init() {
-	log.SetLevel(log.Trace)
+	log.SetLevel(log.Debug)
 }
+
+var s = New(Runner)
 
 func TestSchedulerStart(t *testing.T) {
 	id, _ := s.Start("sleep", "0.1")
@@ -54,7 +54,7 @@ func TestSchedulerOutput(t *testing.T) {
 		Runner,
 	}
 
-	id, _ := s.Start("../scripts/test.sh", "1", "0.1")
+	id, _ := s.Start("../bin/test.sh", "1", "0.1")
 
 	time.Sleep(150 * time.Millisecond)
 
