@@ -78,7 +78,7 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 
 	ec, err := j.startChild(jobId, executable, args...)
 	if err != nil {
-		log.Errorf("%s", err)
+		log.Errorln(err)
 		os.Exit(ec)
 		return "", err
 	}
