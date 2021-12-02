@@ -29,7 +29,7 @@ func main() {
 	case "examples":
 		runExamples(s)
 	case "run":
-		log.SetLevel(log.Debug)
+		log.SetLevel(log.Info)
 		if len(args) < 1 {
 			log.Fatalf("Usage: run [--cpu N] [--io N] [--mem N] EXECUTABLE [ARGS]\n")
 		}
