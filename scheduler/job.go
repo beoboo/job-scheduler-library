@@ -61,7 +61,7 @@ func (j *job) startIsolated(executable string, args ...string) error {
 	}
 	// TODO: mount folders
 	// TODO: set cgroups
-	// TODO: chroot
+	// TODO: chroot or pivot_root
 	// TODO: cd /
 
 	j.cmd = cmd
@@ -96,9 +96,11 @@ func (j *job) cleanup() {
 // startChild starts the execution of a child process, capturing its output
 func (j *job) startChild(jobId, executable string, args ...string) error {
 	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
+	log.Debugf("here")
 
 	_, err := exec.LookPath(executable)
 	if err != nil {
+		//log.Debugf("%v", err)
 		return err
 	}
 	cmd := exec.Command(executable, args...)
