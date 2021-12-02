@@ -18,7 +18,7 @@ func NewWaitGroup(parent string) WaitGroup {
 }
 
 func (wg *WaitGroup) Add(id string, delta int) {
-	log.Tracef("[%s] Adding123 %d %s\n", wg.parent, delta, id)
+	log.Tracef("[%s] Adding %d %s\n", wg.parent, delta, id)
 	wg.wg.Add(delta)
 }
 

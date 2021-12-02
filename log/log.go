@@ -118,26 +118,26 @@ func Warnf(format string, args ...interface{}) {
 
 func Errorln(args ...interface{}) {
 	if logger.level <= Error {
-		logger.error.Println(args...)
+		logger.error.Fprintln(os.Stderr, args...)
 	}
 }
 
 func Errorf(format string, args ...interface{}) {
 	if logger.level <= Error {
-		logger.error.Printf(format, args...)
+		logger.error.Fprintf(os.Stderr, format, args...)
 	}
 }
 
 func Fatalln(args ...interface{}) {
 	if logger.level <= Fatal {
-		logger.fatal.Println(args...)
+		logger.fatal.Fprintln(os.Stderr, args...)
 		os.Exit(1)
 	}
 }
 
 func Fatalf(format string, args ...interface{}) {
 	if logger.level <= Fatal {
-		logger.fatal.Printf(format, args...)
+		logger.fatal.Fprintf(os.Stderr, format, args...)
 		os.Exit(1)
 	}
 }
