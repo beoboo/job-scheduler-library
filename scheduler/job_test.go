@@ -1,25 +1,25 @@
 package scheduler
 
 import (
+	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
-	"sync"
 	"testing"
 	"time"
 )
 
-var wg sync.WaitGroup
+var wg = logsync.NewWaitGroup("JobTest")
 
 func TestJobStart(t *testing.T) {
 	j := newJob(&wg)
 
 	assertJobStatus(t, j, Idle, -1)
 
-	_ = j.start("sleep", "0.1")
+	_ = j.startIsolated("sleep", "0.1")
 
 	assertJobStatus(t, j, Running, -1)
 
 	if j.id == "" {
-		t.Fatalf("job PID should not be empty")
+		t.Fatalf("Job PID should not be empty")
 	}
 
 	wg.Wait()
@@ -30,7 +30,7 @@ func TestJobStart(t *testing.T) {
 func TestUnknownExecutable(t *testing.T) {
 	j := newJob(&wg)
 
-	_ = j.start("./unknown-executable")
+	_ = j.startIsolated("./unknown-executable")
 
 	assertJobStatus(t, j, Errored, -1)
 }
@@ -40,12 +40,12 @@ func TestJobStop(t *testing.T) {
 
 	assertJobStatus(t, j, Idle, -1)
 
-	_ = j.start("sleep", "1")
+	_ = j.startIsolated("sleep", "1")
 
 	assertJobStatus(t, j, Running, -1)
 
 	if j.id == "" {
-		t.Fatalf("job PID should not be empty")
+		t.Fatalf("Job PID should not be empty")
 	}
 
 	_ = j.stop()
@@ -63,7 +63,7 @@ func TestJobOutput(t *testing.T) {
 		"#2\n",
 	}
 
-	err := j.start("../test.sh", "2", "0.1")
+	err := j.startIsolated("../scripts/test.sh", "2", "0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestJobMultipleReaders(t *testing.T) {
 		"#2\n",
 	}
 
-	err := j.start("../test.sh", "2", "0.1")
+	err := j.startIsolated("../scripts/test.sh", "2", "0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,10 +127,10 @@ func assertJobOutput(t *testing.T, j *job, expected []string) {
 
 func assertStatus(t *testing.T, st *JobStatus, expectedType StatusType, expectedCode int) {
 	if st.Type != expectedType {
-		t.Fatalf("job status should be \"%s\", got \"%s\"", expectedType, st.Type)
+		t.Fatalf("Job status should be \"%s\", got \"%s\"", expectedType, st.Type)
 	}
 	if st.ExitCode != expectedCode {
-		t.Fatalf("job exit code should be \"%d\", got \"%d\"", expectedCode, st.ExitCode)
+		t.Fatalf("Job exit code should be \"%d\", got \"%d\"", expectedCode, st.ExitCode)
 	}
 }
 
@@ -140,12 +140,8 @@ func assertOutput(t *testing.T, o *stream.Stream, expected []string) {
 	for _, e := range expected {
 		line := <-lines
 
-		if line == nil {
-			t.Fatalf("Line is nil")
-		}
-
 		if string(line.Text) != e {
-			t.Fatalf("job output should contain \"%s\"%d, got \"%s\"%d", e, len(e), line.Text, len(line.Text))
+			t.Fatalf("Job output should contain \"%s\" (%d), got \"%s\" (%d)", e, len(e), line.Text, len(line.Text))
 		}
 	}
 }

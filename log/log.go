@@ -5,19 +5,29 @@ import (
 	"os"
 )
 
+type Level int
+
 const (
-	TRACE = 0
-	DEBUG = 1
-	INFO  = 2
-	WARN  = 3
-	ERROR = 4
-	FATAL = 4
+	Trace Level = 0
+	Debug Level = 1
+	Info  Level = 2
+	Warn  Level = 3
+	Error Level = 4
+	Fatal Level = 5
+)
+
+type Mode int
+
+const (
+	Normal Mode = 0
+	Dimmed Mode = 1
 )
 
 var logger Logger
 
 type Logger struct {
-	level int
+	level Level
+	mode  Mode
 	trace *color.Color
 	debug *color.Color
 	info  *color.Color
@@ -26,88 +36,112 @@ type Logger struct {
 	fatal *color.Color
 }
 
-func init() {
-	logger = Logger{
-		level: INFO,
-		trace: color.New(color.FgBlue),
-		debug: color.New(color.FgHiBlack),
-		info:  color.New(color.FgCyan),
-		warn:  color.New(color.FgYellow),
-		error: color.New(color.FgRed),
-		fatal: color.New(color.FgHiRed),
+func SetLevel(lvl Level) {
+	logger.level = lvl
+}
+
+func SetMode(md Mode) {
+	logger.mode = md
+	switch md {
+	case Dimmed:
+		logger.trace = color.New(color.FgHiBlack)
+		logger.debug = color.New(color.FgHiBlack)
+		logger.info = color.New(color.FgHiBlack)
+		logger.warn = color.New(color.FgHiBlack)
+		logger.error = color.New(color.FgHiBlack)
+		logger.fatal = color.New(color.FgHiBlack)
+	default:
+		logger.trace = color.New(color.FgBlue)
+		logger.debug = color.New(color.FgHiBlack)
+		logger.info = color.New(color.FgCyan)
+		logger.warn = color.New(color.FgYellow)
+		logger.error = color.New(color.FgRed)
+		logger.fatal = color.New(color.FgHiRed)
 	}
 }
 
+func init() {
+	logger = Logger{
+		level: Info,
+	}
+
+	SetMode(Normal)
+}
+
 func Traceln(args ...interface{}) {
-	if logger.level <= TRACE {
+	if logger.level <= Trace {
 		logger.trace.Println(args...)
 	}
 }
 
 func Tracef(format string, args ...interface{}) {
-	if logger.level <= TRACE {
+	if logger.level <= Trace {
 		logger.trace.Printf(format, args...)
 	}
 }
 
 func Debugln(args ...interface{}) {
-	if logger.level <= DEBUG {
+	if logger.level <= Debug {
 		logger.debug.Println(args...)
 	}
 }
 
 func Debugf(format string, args ...interface{}) {
-	if logger.level <= DEBUG {
+	if logger.level <= Debug {
 		logger.debug.Printf(format, args...)
 	}
 }
 
 func Infoln(args ...interface{}) {
-	if logger.level <= INFO {
+	if logger.level <= Info {
 		logger.info.Println(args...)
 	}
 }
 
 func Infof(format string, args ...interface{}) {
-	if logger.level <= INFO {
+	if logger.level <= Info {
 		logger.info.Printf(format, args...)
 	}
 }
 
 func Warnln(args ...interface{}) {
-	if logger.level <= WARN {
+	if logger.level <= Warn {
 		logger.warn.Println(args...)
 	}
 }
 
 func Warnf(format string, args ...interface{}) {
-	if logger.level <= WARN {
+	if logger.level <= Warn {
 		logger.warn.Printf(format, args...)
 	}
 }
 
 func Errorln(args ...interface{}) {
-	if logger.level <= ERROR {
-		logger.error.Println(args...)
+	if logger.level <= Error {
+		logger.error.Fprintln(os.Stderr, args...)
 	}
 }
 
 func Errorf(format string, args ...interface{}) {
-	if logger.level <= ERROR {
-		logger.error.Printf(format, args...)
+	if logger.level <= Error {
+		logger.error.Fprintf(os.Stderr, format, args...)
 	}
 }
 
 func Fatalln(args ...interface{}) {
-	if logger.level <= FATAL {
-		logger.fatal.Println(args...)
+	if logger.level <= Fatal {
+		logger.fatal.Fprintln(os.Stderr, args...)
 		os.Exit(1)
 	}
 }
 
 func Fatalf(format string, args ...interface{}) {
-	if logger.level <= FATAL {
-		logger.fatal.Printf(format, args...)
+	if logger.level <= Fatal {
+		logger.fatal.Fprintf(os.Stderr, format, args...)
 		os.Exit(1)
 	}
+}
+
+func Reset() {
+	color.Unset()
 }
