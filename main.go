@@ -96,7 +96,6 @@ func runChild(s *scheduler.Scheduler, executable string, params ...string) {
 	_, err := s.Start(executable, params...)
 	if err != nil {
 		log.Fatalf("%v", err)
-		return
 	}
 
 	s.Wait()
