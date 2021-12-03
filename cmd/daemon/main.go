@@ -10,10 +10,6 @@ import (
 func main() {
 	usage := "Usage: child\n"
 
-	if !isRoot() {
-		log.Fatalln("Please run this with root privileges.")
-	}
-
 	if len(os.Args) < 2 {
 		log.Fatalf(usage)
 	}
@@ -46,10 +42,6 @@ func main() {
 	}
 
 	log.Reset()
-}
-
-func isRoot() bool {
-	return os.Geteuid() == 0
 }
 
 func runChild(s *scheduler.Scheduler, executable string, params ...string) {

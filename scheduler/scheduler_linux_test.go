@@ -41,6 +41,26 @@ func TestIsolatedProcessCannotKillParent(t *testing.T) {
 	s.Wait()
 }
 
+func TestIsolatedNetworkNamespace(t *testing.T) {
+	checkDaemon(t)
+
+	var s = New("daemon")
+
+	id, err := s.Start("route")
+	if err != nil {
+		t.Fatalf("Job not started: %v\n", err)
+	}
+
+	s.Wait()
+
+	st, _ := s.Status(id)
+
+	// Would be 0 if the command execute successfully
+	if st.ExitCode != 1 {
+		t.Fatalf("Expected exit code: %d, got %d", -1, st.ExitCode)
+	}
+}
+
 func checkDaemon(t *testing.T) {
 	_, err := exec.LookPath("../bin/daemon")
 	if err != nil {

@@ -21,8 +21,16 @@ type Scheduler struct {
 	wg     logsync.WaitGroup
 }
 
+func isRoot() bool {
+	return os.Geteuid() == 0
+}
+
 // New creates a scheduler.
 func New(runner string) *Scheduler {
+	if !isRoot() {
+		log.Fatalln("Please run this with root privileges.")
+	}
+
 	return &Scheduler{
 		runner: runner,
 		jobs:   make(map[string]*job),
@@ -33,11 +41,7 @@ func New(runner string) *Scheduler {
 
 // NewSelf creates a scheduler for "/proc/self/exe".
 func NewSelf() *Scheduler {
-	return &Scheduler{
-		runner: Self,
-		jobs:   make(map[string]*job),
-		m:      logsync.NewMutex("Scheduler"),
-	}
+	return New(Self)
 }
 
 // Start runs a new job.
