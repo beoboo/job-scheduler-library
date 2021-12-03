@@ -11,10 +11,6 @@ import (
 func main() {
 	usage := "Usage: examples|run|child\n"
 
-	if !isRoot() {
-		log.Fatalln("Please run this with root privileges.")
-	}
-
 	if len(os.Args) < 2 {
 		log.Fatalf(usage)
 	}
@@ -68,10 +64,6 @@ func main() {
 	log.Reset()
 }
 
-func isRoot() bool {
-	return os.Geteuid() == 0
-}
-
 func runParent(s *scheduler.Scheduler, executable string, params ...string) {
 	log.Infof("Starting scheduler with \"%s\"\n", helpers.FormatCmdLine(executable, params...))
 	id := do(s.Start(executable, params...))
@@ -95,7 +87,7 @@ func runChild(s *scheduler.Scheduler, executable string, params ...string) {
 	log.Infof("Starting scheduler with \"%s\"\n", helpers.FormatCmdLine(executable, params...))
 	_, err := s.Start(executable, params...)
 	if err != nil {
-		log.Fatalf("%v", err)
+		log.Fatalf("Error: %v", err)
 	}
 
 	s.Wait()
