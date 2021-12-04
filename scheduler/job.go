@@ -218,7 +218,8 @@ func (j *job) run(started chan error) error {
 	started <- err
 
 	wg.Wait()
-	// wait is expected to fail for three reasons, none of which apply here
+
+	// Wait is expected to fail for three reasons, none of which apply here:
 	// 1. the process is not started (but that doesn't apply, or it would have exited above)
 	// 2. it's called twice (not the case, again)
 	// 3. the process is killed (and we can just log this and return the status and exit code)
