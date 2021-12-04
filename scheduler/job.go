@@ -84,6 +84,38 @@ func (j *job) startIsolated(executable string, mem int, args ...string) error {
 	return err
 }
 
+func (j *job) cleanupIsolated() {
+	j.wg.Done(j.id)
+}
+
+// startChild starts the execution of a child process, capturing its output
+func (j *job) startChild(jobId, executable string, mem int, args ...string) (int, error) {
+	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
+	defer j.cleanupChild()
+
+	// TODO: set cgroups
+	// TODO: mount folders
+	// TODO: chroot or pivot_root
+	// TODO: cd /
+
+	// TODO: set cgroups for CPU/IO
+	if err := j.cgroups(jobId, mem); err != nil {
+		return -1, err
+	}
+
+	cmd := exec.Command(executable, args...)
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return cmd.ProcessState.ExitCode(), err
+	}
+
+	return cmd.ProcessState.ExitCode(), nil
+}
+
 func (j *job) cgroups(jobId string, mem int) error {
 	/*
 		TODO: handle resources in a common/configurable base path so that it can be cleaned up easily
@@ -115,38 +147,6 @@ func itob(num int) []byte {
 
 func itoa(num int) string {
 	return strconv.Itoa(num)
-}
-
-func (j *job) cleanupIsolated() {
-	j.wg.Done(j.id)
-}
-
-// startChild starts the execution of a child process, capturing its output
-func (j *job) startChild(jobId, executable string, mem int, args ...string) (int, error) {
-	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
-	defer j.cleanupChild()
-
-	// TODO: set cgroups
-	// TODO: mount folders
-	// TODO: chroot or pivot_root
-	// TODO: cd /
-
-	// TODO: set cgroups for CPU/IO
-	if err := j.cgroups(jobId, mem); err != nil {
-		return -1, err
-	}
-
-	cmd := exec.Command(executable, args...)
-
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return cmd.ProcessState.ExitCode(), err
-	}
-
-	return cmd.ProcessState.ExitCode(), nil
 }
 
 func (j *job) cleanupChild() {
