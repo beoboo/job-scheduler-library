@@ -21,7 +21,7 @@ func TestIsolatedProcessCannotKillParent(t *testing.T) {
 
 	var s = New("worker")
 
-	id, err := s.Start("kill", strconv.Itoa(os.Getppid()))
+	id, err := s.Start("kill", 0, strconv.Itoa(os.Getppid()))
 	if err != nil {
 		t.Fatalf("Job not started: %v\n", err)
 	}
@@ -46,7 +46,7 @@ func TestIsolatedNetworkNamespace(t *testing.T) {
 
 	var s = New("worker")
 
-	id, err := s.Start("route")
+	id, err := s.Start("route", 0)
 	if err != nil {
 		t.Fatalf("Job not started: %v\n", err)
 	}
@@ -59,6 +59,36 @@ func TestIsolatedNetworkNamespace(t *testing.T) {
 	if st.ExitCode != 1 {
 		t.Fatalf("Expected exit code: %d, got %d", -1, st.ExitCode)
 	}
+}
+
+func TestMemoryLimit(t *testing.T) {
+	checkDaemon(t)
+
+	var s = New("worker")
+	id1, err := s.Start("../bin/test.sh", 5000000, "1 10")
+	if err != nil {
+		t.Fatalf("Job not started: %v\n", err)
+	}
+
+	pid := s.jobs[id1].pid()
+	id2, err := s.Start("ps", 0, "-o", "cgroup", strconv.Itoa(pid))
+	if err != nil {
+		t.Fatalf("Job not started: %v\n", err)
+	}
+
+	o, err := s.Output(id2)
+	if err != nil {
+		t.Fatalf("Cannot get job output: %v\n", err)
+	}
+
+	res := collect(o)
+
+	expected := fmt.Sprintf("memory:/%s", id1)
+	if !strings.Contains(res, expected) {
+		t.Fatalf("Expected \"%s\" to be in \"%s\"", expected, res)
+	}
+
+	s.Wait()
 }
 
 func checkDaemon(t *testing.T) {
