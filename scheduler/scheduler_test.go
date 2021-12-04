@@ -16,7 +16,7 @@ func init() {
 var s = New(Runner)
 
 func TestSchedulerStart(t *testing.T) {
-	id, _ := s.Start("sleep", "0.1")
+	id, _ := s.Start("sleep", 0, "0.1")
 
 	if s.Size() != 1 {
 		t.Fatalf("job not started")
@@ -30,7 +30,7 @@ func TestSchedulerStart(t *testing.T) {
 }
 
 func TestSchedulerStop(t *testing.T) {
-	id, _ := s.Start("sleep", "10")
+	id, _ := s.Start("sleep", 0, "10")
 
 	assertSchedulerStatus(t, s, id, Running, -1)
 
@@ -40,7 +40,7 @@ func TestSchedulerStop(t *testing.T) {
 }
 
 func TestSchedulerWait(t *testing.T) {
-	id, _ := s.Start("sleep", ".1")
+	id, _ := s.Start("sleep", 0, ".1")
 
 	assertSchedulerStatus(t, s, id, Running, -1)
 
@@ -54,7 +54,7 @@ func TestSchedulerOutput(t *testing.T) {
 		Runner,
 	}
 
-	id, _ := s.Start("../bin/test.sh", "1", "0.1")
+	id, _ := s.Start("../bin/test.sh", 0, "1", "0.1")
 
 	time.Sleep(150 * time.Millisecond)
 

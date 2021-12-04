@@ -8,8 +8,10 @@ import (
 	"github.com/beoboo/job-scheduler/library/logsync"
 	"github.com/beoboo/job-scheduler/library/stream"
 	"github.com/google/uuid"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -49,7 +51,7 @@ func generateRandomId() string {
 }
 
 // startIsolated starts the execution of a process through a parent/child mechanism
-func (j *job) startIsolated(executable string, args ...string) error {
+func (j *job) startIsolated(executable string, mem int, args ...string) error {
 	log.Debugf("Starting isolated: %s\n", helpers.FormatCmdLine(executable, args...))
 	cmd := exec.Command(executable, args...)
 
@@ -85,6 +87,39 @@ func (j *job) startIsolated(executable string, args ...string) error {
 	return err
 }
 
+func (j *job) cgroups(jobId string, mem int) error {
+	/*
+		TODO: handle resources in a common/configurable base path so that it can be cleaned up easily
+		i.e. /sys/fs/groups/FOO/[JOB_ID]
+	*/
+	if mem > 0 {
+		log.Debugf("Setting memory limit for %s to %d\n", jobId, mem)
+		dir := "/sys/fs/cgroup/memory/" + jobId
+
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("error creating directory \"%s\": %v\n", dir, err)
+		}
+
+		if err := ioutil.WriteFile(dir+"/memory.limit_in_bytes", itob(mem), 0644); err != nil {
+			return fmt.Errorf("unable to write memory limit: %v", err)
+		}
+
+		if err := ioutil.WriteFile(dir+"/cgroup.procs", itob(os.Getpid()), 0700); err != nil {
+			return fmt.Errorf("unable to write to cgroup.procs file: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func itob(num int) []byte {
+	return []byte(itoa(num))
+}
+
+func itoa(num int) string {
+	return strconv.Itoa(num)
+}
+
 func (j *job) cleanup() {
 	j.wg.Done(j.id)
 
@@ -93,9 +128,14 @@ func (j *job) cleanup() {
 }
 
 // startChild starts the execution of a child process, capturing its output
-func (j *job) startChild(jobId, executable string, args ...string) (int, error) {
+func (j *job) startChild(jobId, executable string, mem int, args ...string) (int, error) {
 	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
 	// TODO: set cgroups
+
+	// TODO: set cgroups for CPU/IO
+	if err := j.cgroups(jobId, mem); err != nil {
+		return -1, err
+	}
 
 	cmd := exec.Command(executable, args...)
 

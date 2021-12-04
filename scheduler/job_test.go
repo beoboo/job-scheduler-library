@@ -14,7 +14,7 @@ func TestJobStart(t *testing.T) {
 
 	assertJobStatus(t, j, Idle, -1)
 
-	_ = j.startIsolated("sleep", "0.1")
+	_ = j.startIsolated("sleep", 0, "0.1")
 
 	assertJobStatus(t, j, Running, -1)
 
@@ -30,7 +30,7 @@ func TestJobStart(t *testing.T) {
 func TestUnknownExecutable(t *testing.T) {
 	j := newJob(&wg)
 
-	_ = j.startIsolated("./unknown-executable")
+	_ = j.startIsolated("./unknown-executable", 0)
 
 	assertJobStatus(t, j, Errored, -1)
 }
@@ -40,7 +40,7 @@ func TestJobStop(t *testing.T) {
 
 	assertJobStatus(t, j, Idle, -1)
 
-	_ = j.startIsolated("sleep", "1")
+	_ = j.startIsolated("sleep", 0, "1")
 
 	assertJobStatus(t, j, Running, -1)
 
@@ -63,7 +63,7 @@ func TestJobOutput(t *testing.T) {
 		"#2\n",
 	}
 
-	err := j.startIsolated("../bin/test.sh", "2", "0.1")
+	err := j.startIsolated("../bin/test.sh", 0, "2", "0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestJobMultipleReaders(t *testing.T) {
 		"#2\n",
 	}
 
-	err := j.startIsolated("../bin/test.sh", "2", "0.1")
+	err := j.startIsolated("../bin/test.sh", 0, "2", "0.1")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -45,7 +45,7 @@ func NewSelf() *Scheduler {
 }
 
 // Start runs a new job.
-func (s *Scheduler) Start(executable string, args ...string) (string, error) {
+func (s *Scheduler) Start(executable string, mem int, args ...string) (string, error) {
 	log.Debugf("Starting executable: \"%s\"\n", helpers.FormatCmdLine(executable, args...))
 	j := newJob(&s.wg)
 
@@ -59,12 +59,13 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	if s.runner != executable {
 		log.Debugln("Starting in isolated mode")
 		args = append([]string{
-			"child",    // Main subcommand
+			"child", // Main subcommand
+			"--mem", itoa(mem),
 			j.id,       // The job ID
 			executable, // The original executable
 		}, args...)
 
-		err := j.startIsolated(s.runner, args...)
+		err := j.startIsolated(s.runner, mem, args...)
 		if err != nil {
 			return "", err
 		}
@@ -86,7 +87,7 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 
 	log.Debugln("Starting in standard mode")
 
-	ec, err := j.startChild(jobId, executable, args...)
+	ec, err := j.startChild(jobId, executable, mem, args...)
 	if err != nil {
 		log.Errorln(err)
 	}
