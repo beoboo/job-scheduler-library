@@ -60,7 +60,6 @@ func (j *job) startIsolated(executable string, args ...string) error {
 			syscall.CLONE_NEWNET,
 	}
 	// TODO: mount folders
-	// TODO: set cgroups
 	// TODO: chroot or pivot_root
 	// TODO: cd /
 
@@ -90,12 +89,13 @@ func (j *job) cleanup() {
 	j.wg.Done(j.id)
 
 	// TODO: unmount folders
-	// TODO: set cgroups
+	// TODO: cleanup cgroups
 }
 
 // startChild starts the execution of a child process, capturing its output
 func (j *job) startChild(jobId, executable string, args ...string) (int, error) {
 	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
+	// TODO: set cgroups
 
 	cmd := exec.Command(executable, args...)
 

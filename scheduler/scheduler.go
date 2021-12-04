@@ -53,7 +53,7 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	/**
 		TODO: this is super simplified. We are checking that the name configured in the Scheduler
 	 	is the same of the executable we're running (through the parent/child execution).
-	    It works well with "/proc/self/exe", less for a "daemon" or "child" binary that needs to be
+	    It works well with "/proc/self/exe", less for a "worker" or "child" binary that needs to be
 	    under $PATH.
 	*/
 	if s.runner != executable {
@@ -89,8 +89,6 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	ec, err := j.startChild(jobId, executable, args...)
 	if err != nil {
 		log.Errorln(err)
-		os.Exit(ec)
-		return "", err
 	}
 
 	os.Exit(ec)

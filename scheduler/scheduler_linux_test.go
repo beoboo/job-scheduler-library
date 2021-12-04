@@ -19,7 +19,7 @@ func init() {
 func TestIsolatedProcessCannotKillParent(t *testing.T) {
 	checkDaemon(t)
 
-	var s = New("daemon")
+	var s = New("worker")
 
 	id, err := s.Start("kill", strconv.Itoa(os.Getppid()))
 	if err != nil {
@@ -44,7 +44,7 @@ func TestIsolatedProcessCannotKillParent(t *testing.T) {
 func TestIsolatedNetworkNamespace(t *testing.T) {
 	checkDaemon(t)
 
-	var s = New("daemon")
+	var s = New("worker")
 
 	id, err := s.Start("route")
 	if err != nil {
@@ -62,11 +62,11 @@ func TestIsolatedNetworkNamespace(t *testing.T) {
 }
 
 func checkDaemon(t *testing.T) {
-	_, err := exec.LookPath("../bin/daemon")
+	_, err := exec.LookPath("../bin/worker")
 	if err != nil {
-		t.Skip(`No \"daemon\" found in \"../bin\". Please build it with:
+		t.Skip(`No \"worker\" found in \"../bin\". Please build it with:
 
-  go build -O bin ./cmd/daemon
+  go build -O bin ./cmd/worker
 `)
 	}
 }
