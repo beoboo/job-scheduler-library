@@ -55,7 +55,7 @@ func (j *job) startIsolated(executable string, args ...string) error {
 
 	// TODO: for simplicity, we're not handling other namespaces (i.e. UTS) or UID/GID mappings
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: syscall.CLONE_NEWUTS |
+		Cloneflags: syscall.CLONE_NEWNS |
 			syscall.CLONE_NEWPID |
 			syscall.CLONE_NEWNET,
 	}
