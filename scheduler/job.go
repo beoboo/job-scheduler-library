@@ -59,9 +59,6 @@ func (j *job) startIsolated(executable string, args ...string) error {
 			syscall.CLONE_NEWPID |
 			syscall.CLONE_NEWNET,
 	}
-	// TODO: mount folders
-	// TODO: chroot or pivot_root
-	// TODO: cd /
 
 	j.cmd = cmd
 
@@ -70,7 +67,7 @@ func (j *job) startIsolated(executable string, args ...string) error {
 	j.wg.Add(j.id, 1)
 
 	go func() {
-		defer j.cleanup()
+		defer j.cleanupIsolated()
 
 		err := j.run(errCh)
 		if err != nil {
@@ -85,17 +82,19 @@ func (j *job) startIsolated(executable string, args ...string) error {
 	return err
 }
 
-func (j *job) cleanup() {
+func (j *job) cleanupIsolated() {
 	j.wg.Done(j.id)
-
-	// TODO: unmount folders
-	// TODO: cleanup cgroups
 }
 
 // startChild starts the execution of a child process, capturing its output
 func (j *job) startChild(jobId, executable string, args ...string) (int, error) {
 	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
+	defer j.cleanupChild()
+
 	// TODO: set cgroups
+	// TODO: mount folders
+	// TODO: chroot or pivot_root
+	// TODO: cd /
 
 	cmd := exec.Command(executable, args...)
 
@@ -108,6 +107,11 @@ func (j *job) startChild(jobId, executable string, args ...string) (int, error) 
 	}
 
 	return cmd.ProcessState.ExitCode(), nil
+}
+
+func (j *job) cleanupChild() {
+	// TODO: unmount folders
+	// TODO: cleanupChild cgroups
 }
 
 // stop stops a running process
