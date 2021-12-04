@@ -33,27 +33,17 @@ func main() {
 		}
 
 		// TODO: handle cmd line options and limits
-		//err := flag.CommandLine.Parse(args)
-		//if err != nil {
-		//	log.Fatalf("Cannot parse arguments: %s\n", err)
-		//}
-		//remaining := flag.Args()
 		remaining := args
 
 		executable := remaining[0]
-		params := remaining[1:]
-		runParent(s, executable, params...)
+		args := remaining[1:]
+		runParent(s, executable, args...)
 	case "child":
 		if len(args) < 2 {
 			log.Fatalf("Usage: child [--cpu N] [--io N] [--mem N] JOB_ID EXECUTABLE [ARGS]\n")
 		}
 
 		// TODO: handle cmd line options and limits
-		//err := flag.CommandLine.Parse(args)
-		//if err != nil {
-		//	log.Fatalf("Cannot parse arguments: %s\n", err)
-		//}
-		//remaining := flag.Args()
 		remaining := args
 
 		runChild(s, os.Args[0], remaining...)
