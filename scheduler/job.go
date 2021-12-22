@@ -93,7 +93,6 @@ func (j *job) startChild(jobId, executable string, mem int, args ...string) (int
 	log.Debugf("Starting child [%s]: %s\n", jobId, helpers.FormatCmdLine(executable, args...))
 	defer j.cleanupChild()
 
-	// TODO: set cgroups
 	// TODO: mount folders
 	// TODO: chroot or pivot_root
 	// TODO: cd /
