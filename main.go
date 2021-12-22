@@ -11,16 +11,15 @@ import (
 func main() {
 	usage := "Usage: examples|run|child\n"
 
-	if !isRoot() {
-		log.Fatalln("Please run this with root privileges.")
-	}
-
 	if len(os.Args) < 2 {
 		log.Fatalf(usage)
 	}
 
 	command := os.Args[1]
 	args := os.Args[2:]
+
+	// TODO: this could be set through an option
+	log.SetLevel(log.Debug)
 
 	//s := scheduler.New("scripts/echo.sh")
 	s := scheduler.NewSelf()
@@ -29,36 +28,22 @@ func main() {
 	case "examples":
 		runExamples(s)
 	case "run":
-		log.SetLevel(log.Info)
 		if len(args) < 1 {
 			log.Fatalf("Usage: run [--cpu N] [--io N] [--mem N] EXECUTABLE [ARGS]\n")
 		}
 
-		// TODO: handle cmd line options
-		//err := flag.CommandLine.Parse(args)
-		//if err != nil {
-		//	log.Fatalf("Cannot parse arguments: %s\n", err)
-		//}
-		//remaining := flag.Args()
+		// TODO: handle cmd line options and limits
 		remaining := args
 
 		executable := remaining[0]
-		params := remaining[1:]
-		runParent(s, executable, params...)
+		args := remaining[1:]
+		runParent(s, executable, args...)
 	case "child":
-		log.SetMode(log.Dimmed)
-		log.SetLevel(log.Info)
-
 		if len(args) < 2 {
 			log.Fatalf("Usage: child [--cpu N] [--io N] [--mem N] JOB_ID EXECUTABLE [ARGS]\n")
 		}
 
-		// TODO: handle cmd line options
-		//err := flag.CommandLine.Parse(args)
-		//if err != nil {
-		//	log.Fatalf("Cannot parse arguments: %s\n", err)
-		//}
-		//remaining := flag.Args()
+		// TODO: handle cmd line options and limits
 		remaining := args
 
 		runChild(s, os.Args[0], remaining...)
@@ -67,10 +52,6 @@ func main() {
 	}
 
 	log.Reset()
-}
-
-func isRoot() bool {
-	return os.Geteuid() == 0
 }
 
 func runParent(s *scheduler.Scheduler, executable string, params ...string) {
@@ -96,8 +77,7 @@ func runChild(s *scheduler.Scheduler, executable string, params ...string) {
 	log.Infof("Starting scheduler with \"%s\"\n", helpers.FormatCmdLine(executable, params...))
 	_, err := s.Start(executable, params...)
 	if err != nil {
-		log.Fatalf("%v", err)
-		return
+		log.Fatalf("Error: %v", err)
 	}
 
 	s.Wait()

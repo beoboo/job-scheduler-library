@@ -63,7 +63,7 @@ func TestJobOutput(t *testing.T) {
 		"#2\n",
 	}
 
-	err := j.startIsolated("../scripts/test.sh", "2", "0.1")
+	err := j.startIsolated("../bin/test.sh", "2", "0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestJobMultipleReaders(t *testing.T) {
 		"#2\n",
 	}
 
-	err := j.startIsolated("../scripts/test.sh", "2", "0.1")
+	err := j.startIsolated("../bin/test.sh", "2", "0.1")
 	if err != nil {
 		t.Fatal(err)
 	}

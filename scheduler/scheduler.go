@@ -21,8 +21,16 @@ type Scheduler struct {
 	wg     logsync.WaitGroup
 }
 
+func isRoot() bool {
+	return os.Geteuid() == 0
+}
+
 // New creates a scheduler.
 func New(runner string) *Scheduler {
+	if !isRoot() {
+		log.Fatalln("Please run this with root privileges.")
+	}
+
 	return &Scheduler{
 		runner: runner,
 		jobs:   make(map[string]*job),
@@ -33,11 +41,7 @@ func New(runner string) *Scheduler {
 
 // NewSelf creates a scheduler for "/proc/self/exe".
 func NewSelf() *Scheduler {
-	return &Scheduler{
-		runner: Self,
-		jobs:   make(map[string]*job),
-		m:      logsync.NewMutex("Scheduler"),
-	}
+	return New(Self)
 }
 
 // Start runs a new job.
@@ -46,6 +50,12 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	j := newJob(&s.wg)
 
 	// If the executable is not the same as the predefined runner, the process has to be isolated
+	/**
+		TODO: this is super simplified. We are checking that the name configured in the Scheduler
+	 	is the same of the executable we're running (through the parent/child execution).
+	    It works well with "/proc/self/exe", less for a "worker" or "child" binary that needs to be
+	    under $PATH.
+	*/
 	if s.runner != executable {
 		log.Debugln("Starting in isolated mode")
 		args = append([]string{
@@ -79,8 +89,6 @@ func (s *Scheduler) Start(executable string, args ...string) (string, error) {
 	ec, err := j.startChild(jobId, executable, args...)
 	if err != nil {
 		log.Errorln(err)
-		os.Exit(ec)
-		return "", err
 	}
 
 	os.Exit(ec)
